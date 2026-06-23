@@ -16,3 +16,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Empêche le zoom automatique sur iOS Safari lors du focus sur un champ */
+input, textarea, select {
+  font-size: 16px !important;
+}
