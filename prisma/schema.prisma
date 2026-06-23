@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Parametres {
+  id                Int    @id @default(1)
+  nomBriqueterie    String @default("")
+  telephone         String @default("")
+  adresse           String @default("")
+  devise            String @default("FCFA")
+  tarifParSac       Float  @default(0)
+  conditionPaiement String @default("Paiement sous 14 jours")
+  logo              String @default("")
+}
+
+model Brique {
+  id          Int     @id @default(autoincrement())
+  nom         String
+  dimensions  String?
+  prixVente   Float
+  stockActuel Int     @default(0)
+  stockMin    Int     @default(0)
+  estCiment   Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  lignesDevis      LigneDevis[]
+  lignesCommande   LigneCommande[]
+  lignesLivraison  LigneLivraison[]
+  sortiesStock     SortieStock[]
+  productionsJour  ProductionJourBrique[]
+  lignesAchat      LigneAchat[]
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  telephone String   @default("")
+  adresse   String   @default("")
+  createdAt DateTime @default(now())
+
+  devis      Devis[]
+  commandes  Commande[]
+}
+
+model Devis {
+  id          Int      @id @default(autoincrement())
+  numero      String   @unique
+  clientId    Int
+  client      Client   @relation(fields: [clientId], references: [id])
+  dateEmission DateTime @default(now())
+  dateValidite DateTime
+  transport   Float    @default(0)
+  notes       String   @default("")
+  statut      String   @default("en_attente")
+  createdAt   DateTime @default(now())
+
+  lignes    LigneDevis[]
+  commande  Commande?
+}
+
+model LigneDevis {
+  id       Int    @id @default(autoincrement())
+  devisId  Int
+  devis    Devis  @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  briqueId Int
+  brique   Brique @relation(fields: [briqueId], references: [id])
+  quantite Int
+  prixUnit Float
+}
+
+model Commande {
+  id          Int      @id @default(autoincrement())
+  numero      String   @unique
+  clientId    Int
+  client      Client   @relation(fields: [clientId], references: [id])
+  devisId     Int?     @unique
+  devis       Devis?   @relation(fields: [devisId], references: [id])
+  dateCommande DateTime @default(now())
+  dateLivraisonPrevue DateTime?
+  acompte     Float    @default(0)
+  transport   Float    @default(0)
+  notes       String   @default("")
+  statut      String   @default("en_attente")
+  createdAt   DateTime @default(now())
+
+  lignes    LigneCommande[]
+  livraison Livraison?
+}
+
+model LigneCommande {
+  id         Int      @id @default(autoincrement())
+  commandeId Int
+  commande   Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  briqueId   Int
+  brique     Brique   @relation(fields: [briqueId], references: [id])
+  quantite   Int
+  prixUnit   Float
+}
+
+model Livraison {
+  id         Int      @id @default(autoincrement())
+  numero     String   @unique
+  commandeId Int      @unique
+  commande   Commande @relation(fields: [commandeId], references: [id])
+  dateLivraison DateTime @default(now())
+  livreur    String   @default("")
+  notes      String   @default("")
+  statut     String   @default("livree")
+  createdAt  DateTime @default(now())
+
+  lignes   LigneLivraison[]
+  facture  Facture?
+}
+
+model LigneLivraison {
+  id          Int      @id @default(autoincrement())
+  livraisonId Int
+  livraison   Livraison @relation(fields: [livraisonId], references: [id], onDelete: Cascade)
+  briqueId    Int
+  brique      Brique   @relation(fields: [briqueId], references: [id])
+  quantiteCommandee Int
+  quantiteLivree    Int
+}
+
+model Facture {
+  id          Int      @id @default(autoincrement())
+  numero      String   @unique
+  livraisonId Int      @unique
+  livraison   Livraison @relation(fields: [livraisonId], references: [id])
+  dateEmission DateTime @default(now())
+  dateEcheance DateTime
+  transport   Float    @default(0)
+  notes       String   @default("")
+  statut      String   @default("impayee")
+  createdAt   DateTime @default(now())
+
+  paiements Paiement[]
+}
+
+model Paiement {
+  id        Int      @id @default(autoincrement())
+  factureId Int
+  facture   Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  montant   Float
+  date      DateTime @default(now())
+  notes     String   @default("")
+}
+
+model SortieStock {
+  id        Int      @id @default(autoincrement())
+  briqueId  Int
+  brique    Brique   @relation(fields: [briqueId], references: [id])
+  quantite  Int
+  type      String
+  notes     String   @default("")
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model ProductionJour {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @default(now())
+  totalSacs Int
+  montantDu Float
+  montantVerse Float  @default(0)
+  statut    String   @default("impaye")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+
+  briques          ProductionJourBrique[]
+  versementLignes  VersementGroupeLigne[]
+}
+
+model Fournisseur {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  telephone String   @default("")
+  adresse   String   @default("")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+
+  achats     AchatFournisseur[]
+  versements VersementFournisseur[]
+}
+
+model AchatFournisseur {
+  id            Int          @id @default(autoincrement())
+  fournisseurId Int
+  fournisseur   Fournisseur  @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  date          DateTime     @default(now())
+  notes         String       @default("")
+  montantTotal  Float
+  montantVerse  Float        @default(0)
+  statut        String       @default("impaye")
+  createdAt     DateTime     @default(now())
+
+  lignes      LigneAchat[]
+  versements  VersementFournisseur[]
+}
+
+model LigneAchat {
+  id       Int              @id @default(autoincrement())
+  achatId  Int
+  achat    AchatFournisseur @relation(fields: [achatId], references: [id], onDelete: Cascade)
+  briqueId Int
+  brique   Brique           @relation(fields: [briqueId], references: [id])
+  quantite Int
+  prixUnit Float
+}
+
+model VersementFournisseur {
+  id            Int               @id @default(autoincrement())
+  fournisseurId Int
+  fournisseur   Fournisseur       @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  achatId       Int?
+  achat         AchatFournisseur? @relation(fields: [achatId], references: [id], onDelete: SetNull)
+  date          DateTime          @default(now())
+  montant       Float
+  notes         String            @default("")
+  createdAt     DateTime          @default(now())
+}
+
+model Depense {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  montant     Float
+  categorie   String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+model VersementGroupe {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  montantTotal Float
+  notes        String   @default("")
+  annule       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  lignes VersementGroupeLigne[]
+}
+
+model VersementGroupeLigne {
+  id                Int             @id @default(autoincrement())
+  versementGroupeId Int
+  versementGroupe   VersementGroupe @relation(fields: [versementGroupeId], references: [id], onDelete: Cascade)
+  productionJourId  Int
+  productionJour    ProductionJour  @relation(fields: [productionJourId], references: [id])
+  montant           Float
+}
+
+model ProductionJourBrique {
+  id               Int            @id @default(autoincrement())
+  productionJourId Int
+  productionJour   ProductionJour @relation(fields: [productionJourId], references: [id], onDelete: Cascade)
+  briqueId         Int
+  brique           Brique         @relation(fields: [briqueId], references: [id])
+  nombreSacs       Int
+  prixParSac       Float          @default(0)
+  quantiteAjoutee  Int            @default(0)
+}
