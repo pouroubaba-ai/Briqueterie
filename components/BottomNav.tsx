@@ -53,8 +53,7 @@ export default function BurgerNav() {
     setOpen(false);
     setConfirmLogout(false);
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/login";
   }
 
   function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
