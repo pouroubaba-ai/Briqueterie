@@ -1,9 +1,13 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const userId = await getUserId(req);
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const livraisons = await prisma.livraison.findMany({
+    where: { userId },
     include: {
       commande: { include: { client: true } },
       lignes: { include: { brique: true } },
@@ -14,7 +18,9 @@ export async function GET() {
   return NextResponse.json(livraisons);
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const userId = await getUserId(req);
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const { commandeId, dateLivraison, livreur, notes, lignes } = await req.json();
 
   for (const l of lignes) {
@@ -27,29 +33,18 @@ export async function POST(req: Request) {
     }
   }
 
-  const count = await prisma.livraison.count();
+  const count = await prisma.livraison.count({ where: { userId } });
   const numero = `BL-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
   const livraison = await prisma.livraison.create({
-    data: {
-      numero,
-      commandeId,
-      dateLivraison: new Date(dateLivraison),
-      livreur: livreur ?? "",
-      notes: notes ?? "",
-      lignes: { create: lignes },
-    },
+    data: { userId, numero, commandeId, dateLivraison: new Date(dateLivraison), livreur: livreur ?? "", notes: notes ?? "", lignes: { create: lignes } },
     include: { commande: { include: { client: true } }, lignes: { include: { brique: true } } },
   });
 
   for (const l of lignes) {
-    await prisma.brique.update({
-      where: { id: l.briqueId },
-      data: { stockActuel: { decrement: l.quantiteLivree } },
-    });
+    await prisma.brique.update({ where: { id: l.briqueId }, data: { stockActuel: { decrement: l.quantiteLivree } } });
   }
 
   await prisma.commande.update({ where: { id: commandeId }, data: { statut: "livre" } });
-
   return NextResponse.json(livraison, { status: 201 });
 }

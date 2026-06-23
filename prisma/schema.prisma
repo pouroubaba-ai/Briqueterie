@@ -7,8 +7,32 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  nom       String   @default("")
+  createdAt DateTime @default(now())
+
+  parametres      Parametres[]
+  briques         Brique[]
+  clients         Client[]
+  devis           Devis[]
+  commandes       Commande[]
+  livraisons      Livraison[]
+  factures        Facture[]
+  paiements       Paiement[]
+  sortiesStock    SortieStock[]
+  productionsJour ProductionJour[]
+  fournisseurs    Fournisseur[]
+  depenses        Depense[]
+  versementGroupes VersementGroupe[]
+}
+
 model Parametres {
-  id                Int    @id @default(1)
+  id                Int    @id @default(autoincrement())
+  userId            Int
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   nomBriqueterie    String @default("")
   telephone         String @default("")
   adresse           String @default("")
@@ -20,6 +44,8 @@ model Parametres {
 
 model Brique {
   id          Int     @id @default(autoincrement())
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   nom         String
   dimensions  String?
   prixVente   Float
@@ -38,6 +64,8 @@ model Brique {
 
 model Client {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   nom       String
   telephone String   @default("")
   adresse   String   @default("")
@@ -49,7 +77,9 @@ model Client {
 
 model Devis {
   id          Int      @id @default(autoincrement())
-  numero      String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  numero      String
   clientId    Int
   client      Client   @relation(fields: [clientId], references: [id])
   dateEmission DateTime @default(now())
@@ -61,6 +91,8 @@ model Devis {
 
   lignes    LigneDevis[]
   commande  Commande?
+
+  @@unique([userId, numero])
 }
 
 model LigneDevis {
@@ -75,7 +107,9 @@ model LigneDevis {
 
 model Commande {
   id          Int      @id @default(autoincrement())
-  numero      String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  numero      String
   clientId    Int
   client      Client   @relation(fields: [clientId], references: [id])
   devisId     Int?     @unique
@@ -90,6 +124,8 @@ model Commande {
 
   lignes    LigneCommande[]
   livraison Livraison?
+
+  @@unique([userId, numero])
 }
 
 model LigneCommande {
@@ -104,7 +140,9 @@ model LigneCommande {
 
 model Livraison {
   id         Int      @id @default(autoincrement())
-  numero     String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  numero     String
   commandeId Int      @unique
   commande   Commande @relation(fields: [commandeId], references: [id])
   dateLivraison DateTime @default(now())
@@ -115,6 +153,8 @@ model Livraison {
 
   lignes   LigneLivraison[]
   facture  Facture?
+
+  @@unique([userId, numero])
 }
 
 model LigneLivraison {
@@ -129,7 +169,9 @@ model LigneLivraison {
 
 model Facture {
   id          Int      @id @default(autoincrement())
-  numero      String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  numero      String
   livraisonId Int      @unique
   livraison   Livraison @relation(fields: [livraisonId], references: [id])
   dateEmission DateTime @default(now())
@@ -140,10 +182,14 @@ model Facture {
   createdAt   DateTime @default(now())
 
   paiements Paiement[]
+
+  @@unique([userId, numero])
 }
 
 model Paiement {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   factureId Int
   facture   Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
   montant   Float
@@ -153,6 +199,8 @@ model Paiement {
 
 model SortieStock {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   briqueId  Int
   brique    Brique   @relation(fields: [briqueId], references: [id])
   quantite  Int
@@ -164,6 +212,8 @@ model SortieStock {
 
 model ProductionJour {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date      DateTime @default(now())
   totalSacs Int
   montantDu Float
@@ -178,6 +228,8 @@ model ProductionJour {
 
 model Fournisseur {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   nom       String
   telephone String   @default("")
   adresse   String   @default("")
@@ -227,6 +279,8 @@ model VersementFournisseur {
 
 model Depense {
   id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date        DateTime @default(now())
   montant     Float
   categorie   String
@@ -236,6 +290,8 @@ model Depense {
 
 model VersementGroupe {
   id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date         DateTime @default(now())
   montantTotal Float
   notes        String   @default("")

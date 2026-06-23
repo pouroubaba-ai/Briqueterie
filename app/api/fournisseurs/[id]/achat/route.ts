@@ -1,20 +1,19 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId } from "@/lib/auth";
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await getUserId(req);
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
     const { id } = await params;
     const fournisseurId = Number(id);
     const { lignes, notes, date, versementImmédiat } = await req.json();
 
-    if (!lignes || lignes.length === 0) {
-      return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
-    }
+    if (!lignes || lignes.length === 0) return NextResponse.json({ error: "Au moins une ligne requise" }, { status: 400 });
     for (const l of lignes) {
-      if (!l.briqueId || l.quantite <= 0 || l.prixUnit <= 0) {
-        return NextResponse.json({ error: "Chaque ligne doit avoir un produit, une quantité et un prix" }, { status: 400 });
-      }
+      if (!l.briqueId || l.quantite <= 0 || l.prixUnit <= 0) return NextResponse.json({ error: "Chaque ligne doit avoir un produit, une quantité et un prix" }, { status: 400 });
     }
 
     const montantTotal = lignes.reduce((s: number, l: { quantite: number; prixUnit: number }) => s + l.quantite * l.prixUnit, 0);
@@ -23,47 +22,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const achat = await prisma.achatFournisseur.create({
       data: {
-        fournisseurId,
-        date: date ? new Date(date) : new Date(),
-        notes: notes ?? "",
-        montantTotal,
-        montantVerse,
-        statut,
-        lignes: {
-          create: lignes.map((l: { briqueId: number; quantite: number; prixUnit: number }) => ({
-            briqueId: Number(l.briqueId),
-            quantite: Number(l.quantite),
-            prixUnit: Number(l.prixUnit),
-          })),
-        },
+        fournisseurId, date: date ? new Date(date) : new Date(), notes: notes ?? "",
+        montantTotal, montantVerse, statut,
+        lignes: { create: lignes.map((l: { briqueId: number; quantite: number; prixUnit: number }) => ({ briqueId: Number(l.briqueId), quantite: Number(l.quantite), prixUnit: Number(l.prixUnit) })) },
       },
       include: { lignes: true },
     });
 
-    // Incrémenter le stock pour chaque produit
     for (const l of lignes) {
-      await prisma.brique.update({
-        where: { id: Number(l.briqueId) },
-        data: { stockActuel: { increment: Number(l.quantite) } },
-      });
+      await prisma.brique.update({ where: { id: Number(l.briqueId) }, data: { stockActuel: { increment: Number(l.quantite) } } });
     }
 
-    // Si versement immédiat, enregistrer le versement lié à cet achat
     if (montantVerse > 0) {
       await prisma.versementFournisseur.create({
-        data: {
-          fournisseurId,
-          achatId: achat.id,
-          montant: montantVerse,
-          date: date ? new Date(date) : new Date(),
-          notes: `Versement à l'achat`,
-        },
+        data: { fournisseurId, achatId: achat.id, montant: montantVerse, date: date ? new Date(date) : new Date(), notes: `Versement à l'achat` },
       });
     }
 
     return NextResponse.json(achat, { status: 201 });
   } catch (err) {
-    console.error("POST achat fournisseur:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
   }
 }
