@@ -20,7 +20,7 @@ export default function Stock() {
   const [showForm, setShowForm] = useState(false);
   const [showSortie, setShowSortie] = useState(false);
   const [editing, setEditing] = useState<Brique | null>(null);
-  const [form, setForm] = useState({ nom: "", dimensions: "", prixVente: 0, stockActuel: 0, stockMin: 0, estCiment: false });
+  const [form, setForm] = useState({ nom: "", dimensions: "", prixVente: "", stockActuel: "", stockMin: "", estCiment: false });
   const [sortieForm, setSortieForm] = useState<SortieForm>({ briqueId: 0, quantite: 1, type: "vol", notes: "", date: new Date().toISOString().slice(0, 10) });
   const [savingBrique, setSavingBrique] = useState(false);
   const [savingSortie, setSavingSortie] = useState(false);
@@ -37,20 +37,21 @@ export default function Stock() {
   }
   useEffect(load, []);
 
-  function openNew() { setForm({ nom: "", dimensions: "", prixVente: 0, stockActuel: 0, stockMin: 0, estCiment: false }); setEditing(null); setFormError(""); setShowForm(true); }
-  function openEdit(b: Brique) { setForm({ nom: b.nom, dimensions: b.dimensions ?? "", prixVente: b.prixVente, stockActuel: b.stockActuel, stockMin: b.stockMin, estCiment: b.estCiment }); setEditing(b); setFormError(""); setShowForm(true); }
+  function openNew() { setForm({ nom: "", dimensions: "", prixVente: "", stockActuel: "", stockMin: "", estCiment: false }); setEditing(null); setFormError(""); setShowForm(true); }
+  function openEdit(b: Brique) { setForm({ nom: b.nom, dimensions: b.dimensions ?? "", prixVente: String(b.prixVente), stockActuel: String(b.stockActuel), stockMin: String(b.stockMin), estCiment: b.estCiment }); setEditing(b); setFormError(""); setShowForm(true); }
 
   async function save() {
     if (!form.nom.trim()) { setFormError("Le nom du produit est requis."); return; }
-    if (!form.prixVente || form.prixVente <= 0) { setFormError("Le prix de vente est requis."); return; }
+    if (!form.prixVente || Number(form.prixVente) <= 0) { setFormError("Le prix de vente est requis."); return; }
     setFormError("");
     if (savingBriqueRef.current) return;
     savingBriqueRef.current = true; setSavingBrique(true);
     try {
+      const payload = { ...form, prixVente: Number(form.prixVente) || 0, stockActuel: Number(form.stockActuel) || 0, stockMin: Number(form.stockMin) || 0 };
       if (editing) {
-        await fetch(`/api/briques/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+        await fetch(`/api/briques/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       } else {
-        await fetch("/api/briques", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+        await fetch("/api/briques", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       }
       setShowForm(false); load();
     } finally { savingBriqueRef.current = false; setSavingBrique(false); }
@@ -245,8 +246,9 @@ export default function Stock() {
               ].map(({ label, key }) => (
                 <div key={key}>
                   <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-                  <input type="number" value={form[key as keyof typeof form] as number}
-                    onChange={e => setForm(f => ({ ...f, [key]: Number(e.target.value) }))}
+                  <input type="number" value={form[key as keyof typeof form] as string}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    placeholder="0"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
                 </div>
               ))}

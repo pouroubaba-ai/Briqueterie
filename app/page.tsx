@@ -219,7 +219,7 @@ export default function Dashboard() {
                           {p.briques.map((b, i) => (
                             <div key={i} className="flex justify-between items-center py-0.5 pl-2">
                               <div>
-                                <span className="text-xs text-gray-600">{b.brique.nom}</span>
+                                <span className="text-xs text-gray-600">{b.brique.nom}{b.brique.dimensions ? ` — ${b.brique.dimensions}` : ""}</span>
                                 {b.nombreSacs > 0 && <span className="text-xs text-gray-400 ml-1.5">· {b.nombreSacs} sac(s)</span>}
                               </div>
                               <div className="text-right">
