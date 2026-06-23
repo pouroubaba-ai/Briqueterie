@@ -27,6 +27,7 @@ export default function Stock() {
   const [confirmDel, setConfirmDel] = useState<Brique | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [delError, setDelError] = useState("");
+  const [formError, setFormError] = useState("");
   const savingBriqueRef = useRef(false);
   const savingSortieRef = useRef(false);
 
@@ -36,12 +37,13 @@ export default function Stock() {
   }
   useEffect(load, []);
 
-  function openNew() { setForm({ nom: "", dimensions: "", prixVente: 0, stockActuel: 0, stockMin: 0, estCiment: false }); setEditing(null); setShowForm(true); }
-  function openEdit(b: Brique) { setForm({ nom: b.nom, dimensions: b.dimensions ?? "", prixVente: b.prixVente, stockActuel: b.stockActuel, stockMin: b.stockMin, estCiment: b.estCiment }); setEditing(b); setShowForm(true); }
+  function openNew() { setForm({ nom: "", dimensions: "", prixVente: 0, stockActuel: 0, stockMin: 0, estCiment: false }); setEditing(null); setFormError(""); setShowForm(true); }
+  function openEdit(b: Brique) { setForm({ nom: b.nom, dimensions: b.dimensions ?? "", prixVente: b.prixVente, stockActuel: b.stockActuel, stockMin: b.stockMin, estCiment: b.estCiment }); setEditing(b); setFormError(""); setShowForm(true); }
 
   async function save() {
-    if (!form.nom.trim()) { alert("Le nom du produit est requis."); return; }
-    if (!form.prixVente || form.prixVente <= 0) { alert("Le prix de vente est requis."); return; }
+    if (!form.nom.trim()) { setFormError("Le nom du produit est requis."); return; }
+    if (!form.prixVente || form.prixVente <= 0) { setFormError("Le prix de vente est requis."); return; }
+    setFormError("");
     if (savingBriqueRef.current) return;
     savingBriqueRef.current = true; setSavingBrique(true);
     try {
@@ -261,6 +263,11 @@ export default function Stock() {
                 <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.estCiment ? "translate-x-4" : "translate-x-0.5"}`} />
               </div>
             </button>
+            {formError && (
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <span className="text-red-500">⚠</span> {formError}
+              </div>
+            )}
             <button onClick={save} disabled={savingBrique} className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-60">
               {savingBrique ? "Enregistrement…" : editing ? "Enregistrer les modifications" : "Ajouter la brique"}
             </button>
