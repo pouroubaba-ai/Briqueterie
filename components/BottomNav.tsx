@@ -10,10 +10,8 @@ import {
 } from "lucide-react";
 
 const financesLinks = [
-  { href: "/finances/synthese",     icon: BarChart2,  label: "Synthèse"     },
-  { href: "/finances/production",   icon: Factory,    label: "Production"   },
-  { href: "/finances/fournisseurs", icon: Building2,  label: "Fournisseurs" },
-  { href: "/finances/depenses",     icon: CreditCard, label: "Dépenses"     },
+  { href: "/finances/synthese",  icon: BarChart2,  label: "Synthèse" },
+  { href: "/finances/depenses",  icon: CreditCard, label: "Dépenses" },
 ];
 
 const commercialLinks = [
@@ -118,7 +116,7 @@ export default function BurgerNav() {
               <NavLink href="/stock" icon={Package} label="Inventaire" />
 
               {/* Production */}
-              <NavLink href="/production" icon={Factory} label="Production" />
+              <NavLink href="/finances/production" icon={Factory} label="Production" />
 
               {/* Commercial accordéon */}
               <div>
