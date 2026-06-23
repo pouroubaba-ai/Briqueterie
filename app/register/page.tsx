@@ -31,7 +31,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+    <div className="bg-gray-50 flex flex-col items-center justify-center px-4 -mt-14" style={{ minHeight: "100dvh" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Briqueterie</h1>
