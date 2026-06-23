@@ -43,7 +43,7 @@ export default function Register() {
             <label className="text-sm font-medium text-gray-700">Nom de la briqueterie</label>
             <input
               type="text" value={nom} onChange={e => setNom(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ fontSize: "16px" }}
               placeholder="Ma Briqueterie"
             />
           </div>
@@ -51,7 +51,7 @@ export default function Register() {
             <label className="text-sm font-medium text-gray-700">Email</label>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ fontSize: "16px" }}
               placeholder="exemple@email.com"
             />
           </div>
@@ -59,7 +59,7 @@ export default function Register() {
             <label className="text-sm font-medium text-gray-700">Mot de passe</label>
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ fontSize: "16px" }}
               placeholder="••••••••"
             />
           </div>
