@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
   const hash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({ data: { email, password: hash, nom: nom ?? "" } });
 
+  // Créer les paramètres avec le nom de la briqueterie
+  await prisma.parametres.create({ data: { userId: user.id, nomBriqueterie: nom ?? "" } });
+
   const token = await signToken(user.id);
   const res = NextResponse.json({ ok: true });
   res.cookies.set("token", token, { httpOnly: true, maxAge: 60 * 60 * 24 * 30, path: "/" });
