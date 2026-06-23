@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, FileText } from "lucide-react";
 
@@ -18,7 +18,7 @@ const CAT_CONFIG: Record<string, { label: string; color: string }> = {
 
 function nomProduit(nom: string, dim: string | null) { return dim ? `${nom} — ${dim}` : nom; }
 
-export default function Historique() {
+function HistoriqueContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type") as "sortie" | "entree" | null;
 
@@ -154,4 +154,8 @@ export default function Historique() {
       </div>
     </div>
   );
+}
+
+export default function Historique() {
+  return <Suspense><HistoriqueContent /></Suspense>;
 }
