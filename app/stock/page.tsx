@@ -40,6 +40,8 @@ export default function Stock() {
   function openEdit(b: Brique) { setForm({ nom: b.nom, dimensions: b.dimensions ?? "", prixVente: b.prixVente, stockActuel: b.stockActuel, stockMin: b.stockMin, estCiment: b.estCiment }); setEditing(b); setShowForm(true); }
 
   async function save() {
+    if (!form.nom.trim()) { alert("Le nom du produit est requis."); return; }
+    if (!form.prixVente || form.prixVente <= 0) { alert("Le prix de vente est requis."); return; }
     if (savingBriqueRef.current) return;
     savingBriqueRef.current = true; setSavingBrique(true);
     try {
