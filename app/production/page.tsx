@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Plus, ChevronDown, ChevronUp, X, Hammer, Trash2, Ban, Wallet } from "lucide-react";
