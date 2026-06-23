@@ -7,5 +7,6 @@ export async function GET(req: NextRequest) {
   const userId = await getUserId(req);
   if (!userId) return NextResponse.json(null);
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, nom: true } });
-  return NextResponse.json(user);
+  if (!user) return NextResponse.json(null);
+  return NextResponse.json({ ...user, isAdmin: user.email === process.env.ADMIN_EMAIL });
 }

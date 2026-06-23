@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Package, ShoppingCart,
   Receipt, Wallet, Settings, Menu, X, FileText, Truck,
   History, ChevronDown, TrendingDown, TrendingUp, Briefcase,
-  BarChart2, Factory, Building2, CreditCard, LogOut, HardHat,
+  BarChart2, Factory, Building2, CreditCard, LogOut, HardHat, ShieldCheck,
 } from "lucide-react";
 
 const financesLinks = [
@@ -26,6 +26,7 @@ export default function BurgerNav() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nomBriqueterie, setNomBriqueterie] = useState("Briqueterie");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [histOpen, setHistOpen] = useState(pathname.startsWith("/historique"));
   const commercialPaths = ["/devis", "/commandes", "/livraisons", "/factures"];
   const [commOpen, setCommOpen] = useState(commercialPaths.some(p => pathname.startsWith(p)));
@@ -38,6 +39,9 @@ export default function BurgerNav() {
   useEffect(() => {
     fetch("/api/parametres").then(r => r.json()).then(d => {
       if (d?.nomBriqueterie) setNomBriqueterie(d.nomBriqueterie);
+    }).catch(() => {});
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (d?.isAdmin) setIsAdmin(true);
     }).catch(() => {});
   }, []);
 
@@ -183,6 +187,11 @@ export default function BurgerNav() {
 
               {/* Réglages */}
               <NavLink href="/parametres" icon={Settings} label="Réglages" />
+
+              {/* Admin - visible uniquement pour l'administrateur */}
+              {isAdmin && (
+                <NavLink href="/admin" icon={ShieldCheck} label="Administration" />
+              )}
             </nav>
 
             {/* Bouton déconnexion en bas */}
