@@ -28,26 +28,28 @@ export default function BurgerNav() {
   const [nomBriqueterie, setNomBriqueterie] = useState("Briqueterie");
   const [isAdmin, setIsAdmin] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-
-  const isPublic = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/abonnement-expire");
-  if (isPublic) return null;
-  const [histOpen, setHistOpen] = useState(pathname.startsWith("/historique"));
   const commercialPaths = ["/devis", "/commandes", "/livraisons", "/factures"];
+  const [histOpen, setHistOpen] = useState(pathname.startsWith("/historique"));
   const [commOpen, setCommOpen] = useState(commercialPaths.some(p => pathname.startsWith(p)));
   const [finOpen, setFinOpen] = useState(pathname.startsWith("/finances"));
 
-  const histActive = pathname.startsWith("/historique");
-  const commActive = commercialPaths.some(p => pathname.startsWith(p));
-  const finActive = pathname.startsWith("/finances");
+  const isPublic = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/abonnement-expire");
 
   useEffect(() => {
+    if (isPublic) return;
     fetch("/api/parametres").then(r => r.json()).then(d => {
       if (d?.nomBriqueterie) setNomBriqueterie(d.nomBriqueterie);
     }).catch(() => {});
     fetch("/api/auth/me").then(r => r.json()).then(d => {
       if (d?.isAdmin) setIsAdmin(true);
     }).catch(() => {});
-  }, []);
+  }, [pathname]);
+
+  const histActive = pathname.startsWith("/historique");
+  const commActive = commercialPaths.some(p => pathname.startsWith(p));
+  const finActive = pathname.startsWith("/finances");
+
+  if (isPublic) return null;
 
   async function deconnecter() {
     setOpen(false);
