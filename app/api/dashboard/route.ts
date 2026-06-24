@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const [briques, factures, sorties, productions, versementsFourn, depensesDiverses, tousLesAchats, tousLesVersementsFourn] = await Promise.all([
     prisma.brique.findMany({ where: { userId } }),
     prisma.facture.findMany({ where: { userId, statut: { not: "annulee" }, livraison: { commande: { statut: { not: "annule" } } } }, include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: { include: { client: true } } } } }, orderBy: { createdAt: "desc" } }),
-    prisma.sortieStock.findMany({ where: { userId, date: { gte: debut, lte: fin }, type: { notIn: ["production", "annulation_production", "retour_ciment"] } }, include: { brique: true } }),
+    prisma.sortieStock.findMany({ where: { userId, date: { gte: debut, lte: fin }, type: { notIn: ["production", "annulation_production", "retour_ciment", "retour_vente"] } }, include: { brique: true } }),
     prisma.productionJour.findMany({ where: { userId, date: { gte: debut, lte: fin }, statut: { not: "annule" } }, include: { briques: { include: { brique: true } } } }),
     prisma.versementFournisseur.findMany({ where: { fournisseur: { userId }, date: { gte: debut, lte: fin } } }),
     prisma.depense.findMany({ where: { userId, date: { gte: debut, lte: fin } } }),

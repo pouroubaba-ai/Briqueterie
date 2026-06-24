@@ -14,6 +14,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   for (const l of facture.livraison.lignes) {
     await prisma.brique.update({ where: { id: l.briqueId }, data: { stockActuel: { increment: l.quantiteLivree } } });
+    await prisma.sortieStock.create({
+      data: {
+        userId,
+        briqueId: l.briqueId,
+        quantite: -l.quantiteLivree,
+        type: "retour_vente",
+        notes: `Retour suite annulation facture ${facture.numero ?? ""}`,
+        date: new Date(),
+      },
+    });
   }
   await prisma.commande.update({ where: { id: facture.livraison.commandeId }, data: { statut: "confirme" } });
   const updated = await prisma.facture.update({ where: { id: Number(id) }, data: { statut: "annulee" } });
