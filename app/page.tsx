@@ -62,7 +62,7 @@ export default function Dashboard() {
   const [customA,  setCustomA]  = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [productionExpanded, setProductionExpanded] = useState(false);
-  const [popup, setPopup] = useState<"depenses" | "benefice-reel" | "benefice-theorique" | null>(null);
+  const [popup, setPopup] = useState<"ca" | "depenses" | "benefice-reel" | "benefice-theorique" | null>(null);
 
   useEffect(() => {
     fetch("/api/parametres").then(r => r.json()).then(p => { if (p.devise) setDevise(p.devise); });
@@ -132,7 +132,11 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 mb-1">Chiffre d&apos;affaires</p>
                     <p className="text-sm font-bold text-gray-900">{fmt(data.recettes, devise)}</p>
                     <div className="mt-2 pt-2 border-t border-gray-50">
-                      <p className="text-xs text-gray-400">Encaissé</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs text-gray-400">Encaissé</p>
+                        <button onClick={() => setPopup("ca")}
+                          className="w-4 h-4 rounded-full border border-gray-300 text-gray-400 text-xs flex items-center justify-center flex-shrink-0 italic font-medium leading-none">!</button>
+                      </div>
                       <p className="text-sm font-bold text-green-600">{fmt(data.totalPaye, devise)}</p>
                     </div>
                   </div>
@@ -184,6 +188,17 @@ export default function Dashboard() {
                 {popup && (
                   <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setPopup(null)}>
                     <div className="bg-white w-full rounded-t-2xl p-5 pb-10" onClick={e => e.stopPropagation()}>
+                      {popup === "ca" && (
+                        <>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">Chiffre d&apos;affaires</p>
+                          <p className="text-xs text-gray-400 mb-4">Détail des ventes sur la période</p>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Total facturé</span><span className="font-semibold text-gray-900">{fmt(data.recettes, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Encaissé</span><span className="font-semibold text-green-600">{fmt(data.totalPaye, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Reste à encaisser</span><span className="font-semibold text-orange-500">{fmt(data.impayesMois, devise)}</span></div>
+                          </div>
+                        </>
+                      )}
                       {popup === "depenses" && (
                         <>
                           <p className="text-sm font-semibold text-gray-900 mb-1">Dépenses à venir</p>
