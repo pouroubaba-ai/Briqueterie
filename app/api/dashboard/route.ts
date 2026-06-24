@@ -50,9 +50,10 @@ export async function GET(req: NextRequest) {
   const resteDuFournisseurs = Math.max(0, totalAchatsFourn - totalVersementsFourn);
 
   const facturesPeriode = factures.filter(f => new Date(f.createdAt) >= debut && new Date(f.createdAt) <= fin);
-  const recettes = facturesPeriode.reduce((s, f) => s + f.paiements.reduce((ps, p) => ps + p.montant, 0), 0);
   const totalFacture = facturesPeriode.reduce((s, f) => s + f.livraison.lignes.reduce((ls, l) => ls + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + f.transport, 0);
-  const impayesMois = totalFacture - recettes;
+  const totalPaye = facturesPeriode.reduce((s, f) => s + f.paiements.reduce((ps, p) => ps + p.montant, 0), 0);
+  const recettes = totalFacture; // Toutes les ventes (payées + impayées)
+  const impayesMois = totalFacture - totalPaye;
   const depensesProduction = productions.reduce((s, p) => s + p.montantVerse, 0);
   const depensesFournisseurs = versementsFourn.reduce((s, v) => s + v.montant, 0);
   const depensesDiversesTotal = depensesDiverses.reduce((s, d) => s + d.montant, 0);

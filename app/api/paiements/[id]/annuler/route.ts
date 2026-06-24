@@ -6,11 +6,12 @@ import { getUserId } from "@/lib/auth";
 async function recalculStatut(factureId: number) {
   const facture = await prisma.facture.findUnique({
     where: { id: factureId },
-    include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } } } } },
+    include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: true } } },
   });
   if (!facture) return;
   const totalFacture = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + facture.transport;
-  const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0);
+  const acompte = facture.livraison.commande.acompte ?? 0;
+  const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0) + acompte;
   const statut = totalPaye >= totalFacture ? "payee" : totalPaye > 0 ? "partielle" : "impayee";
   await prisma.facture.update({ where: { id: factureId }, data: { statut } });
 }

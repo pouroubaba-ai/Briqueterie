@@ -26,6 +26,7 @@ export default function Commandes() {
   const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0 }]);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [formError, setFormError] = useState("");
 
   function load() {
     fetch("/api/commandes").then(r => r.json()).then(setCommandes);
@@ -70,10 +71,21 @@ export default function Commandes() {
     if (savingRef.current) return;
     const validLignes = lignes.filter(l => l.briqueId > 0 && l.quantite > 0);
     if (!form.clientId || !validLignes.length) return;
+    setFormError("");
+    // Validation client-side
+    if (form.acompte > 0 && form.acompte > totalCommande) {
+      setFormError(`L'acompte (${form.acompte.toLocaleString()}) ne peut pas dépasser le total de la commande (${totalCommande.toLocaleString()}).`);
+      return;
+    }
     savingRef.current = true; setSaving(true);
     try {
-      await fetch("/api/commandes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, lignes: validLignes }) });
-      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0 }]); setForm({ clientId: 0, dateLivraisonPrevue: "", acompte: 0, transport: 0, notes: "" }); load();
+      const res = await fetch("/api/commandes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, lignes: validLignes }) });
+      if (!res.ok) {
+        const data = await res.json();
+        setFormError(data.error ?? "Erreur lors de la création.");
+        return;
+      }
+      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0 }]); setForm({ clientId: 0, dateLivraisonPrevue: "", acompte: 0, transport: 0, notes: "" }); setFormError(""); load();
     } finally { savingRef.current = false; setSaving(false); }
   }
 
@@ -199,8 +211,12 @@ export default function Commandes() {
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Acompte ({devise})</label>
-                <input type="number" value={form.acompte || ""} onChange={e => setForm(f => ({ ...f, acompte: Number(e.target.value) }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
+                <input type="number" value={form.acompte || ""}
+                  onChange={e => { setFormError(""); setForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${form.acompte > 0 && form.acompte > totalCommande ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
+                {form.acompte > 0 && form.acompte > totalCommande && (
+                  <p className="text-xs text-red-600 mt-1">Max : {devise} {totalCommande.toLocaleString()}</p>
+                )}
               </div>
             </div>
 
@@ -221,7 +237,13 @@ export default function Commandes() {
               <span className="text-sm font-bold text-green-700">{devise} {totalCommande.toLocaleString()}</span>
             </div>
 
-            <button onClick={save} disabled={!form.clientId || saving} className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-40">
+            {formError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 text-xs text-red-700">{formError}</div>
+            )}
+
+            <button onClick={save}
+              disabled={!form.clientId || saving || (form.acompte > 0 && form.acompte > totalCommande)}
+              className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-40">
               {saving ? "Création…" : "Créer la commande"}
             </button>
           </div>

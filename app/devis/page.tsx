@@ -28,6 +28,9 @@ export default function Devis() {
   const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number; description: string }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0, description: "" }]);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [convertDevis, setConvertDevis] = useState<Devis | null>(null);
+  const [convertForm, setConvertForm] = useState({ transport: 0, acompte: 0 });
+  const [convertError, setConvertError] = useState("");
 
   function load() {
     fetch("/api/devis").then(r => r.json()).then(setDevisList);
@@ -73,18 +76,31 @@ export default function Devis() {
     } finally { savingRef.current = false; setSaving(false); }
   }
 
-  async function convertirCommande(devisId: number) {
-    const d = devisList.find(d => d.id === devisId);
-    if (!d) return;
-    await fetch("/api/commandes", {
+  async function convertirCommande() {
+    if (!convertDevis) return;
+    setConvertError("");
+    const totalDevis = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + convertForm.transport;
+    if (convertForm.acompte > 0 && convertForm.acompte > totalDevis) {
+      setConvertError(`L'acompte ne peut pas dépasser le total (${totalDevis.toLocaleString()}).`);
+      return;
+    }
+    const res = await fetch("/api/commandes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        clientId: d.clientId,
-        devisId: d.id,
-        lignes: d.lignes.map(l => ({ briqueId: l.briqueId, quantite: l.quantite, prixUnit: l.prixUnit })),
+        clientId: convertDevis.clientId,
+        devisId: convertDevis.id,
+        transport: convertForm.transport,
+        acompte: convertForm.acompte,
+        lignes: convertDevis.lignes.map(l => ({ briqueId: l.briqueId, quantite: l.quantite, prixUnit: l.prixUnit })),
       }),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      setConvertError(data.error ?? "Erreur.");
+      return;
+    }
+    setConvertDevis(null); setConvertForm({ transport: 0, acompte: 0 });
     load();
   }
 
@@ -136,7 +152,7 @@ export default function Devis() {
               </div>
               <div className="mb-2"><PDFButton type="devis" id={d.id} numero={d.numero} /></div>
               {d.statut === "accepte" && (
-                <button onClick={() => convertirCommande(d.id)} className="w-full py-2 rounded-lg bg-green-600 text-white text-xs font-medium">
+                <button onClick={() => { setConvertDevis(d); setConvertForm({ transport: 0, acompte: 0 }); setConvertError(""); }} className="w-full py-2 rounded-lg bg-green-600 text-white text-xs font-medium">
                   Convertir en commande
                 </button>
               )}
@@ -285,6 +301,65 @@ export default function Devis() {
               </div>
             ))}
             <button onClick={saveClient} className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm">Ajouter le client</button>
+          </div>
+        </div>
+      )}
+      {/* Modal conversion devis → commande */}
+      {convertDevis && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
+          <div className="bg-white w-full rounded-t-2xl p-4 pb-24 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Convertir en commande</h2>
+                <p className="text-xs text-gray-400">{convertDevis.numero} — {convertDevis.client.nom}</p>
+              </div>
+              <button onClick={() => setConvertDevis(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-500">Total devis</p>
+              <p className="text-lg font-bold text-gray-900">{devise} {convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0).toLocaleString()}</p>
+            </div>
+
+            {(() => {
+              const totalAvecTransport = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + convertForm.transport;
+              const acompteInvalide = convertForm.acompte > 0 && convertForm.acompte > totalAvecTransport;
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Transport ({devise})</label>
+                      <input type="number" value={convertForm.transport || ""} placeholder="0"
+                        onChange={e => setConvertForm(f => ({ ...f, transport: Number(e.target.value) }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Acompte ({devise})</label>
+                      <input type="number" value={convertForm.acompte || ""} placeholder="0"
+                        onChange={e => { setConvertError(""); setConvertForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
+                        className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${acompteInvalide ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
+                      {acompteInvalide && (
+                        <p className="text-xs text-red-600 mt-1">Max : {devise} {totalAvecTransport.toLocaleString()}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {convertError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{convertError}</div>
+                  )}
+
+                  <div className="bg-green-50 rounded-xl p-3 flex justify-between">
+                    <span className="text-sm text-gray-600">Total avec transport</span>
+                    <span className="text-sm font-bold text-green-700">{devise} {totalAvecTransport.toLocaleString()}</span>
+                  </div>
+
+                  <button onClick={convertirCommande} disabled={acompteInvalide}
+                    className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-40">
+                    Confirmer la commande
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

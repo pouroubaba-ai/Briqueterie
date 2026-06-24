@@ -34,6 +34,8 @@ export default function FactureDetail() {
   const savingPaiementRef = useRef(false);
   const savingAnnulRef = useRef(false);
   const [confirmAnnuler, setConfirmAnnuler] = useState<Paiement | null>(null);
+  const [confirmAnnulAcompte, setConfirmAnnulAcompte] = useState(false);
+  const [savingAnnulAcompte, setSavingAnnulAcompte] = useState(false);
   const [filtrePaiement, setFiltrePaiement] = useState<"tous" | "versements" | "annulations">("tous");
 
   function load() {
@@ -49,7 +51,8 @@ export default function FactureDetail() {
 
   const sousTotal = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0);
   const total = sousTotal + facture.transport;
-  const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0);
+  const acompte = facture.livraison.commande.acompte ?? 0;
+  const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0) + acompte;
   const reste = total - totalPaye;
 
   async function savePaiement() {
@@ -88,6 +91,15 @@ export default function FactureDetail() {
       setConfirmAnnuler(null);
       load();
     } finally { savingAnnulRef.current = false; setSavingAnnul(false); }
+  }
+
+  async function annulerAcompte() {
+    setSavingAnnulAcompte(true);
+    try {
+      await fetch(`/api/factures/${id}/annuler-acompte`, { method: "POST" });
+      setConfirmAnnulAcompte(false);
+      load();
+    } finally { setSavingAnnulAcompte(false); }
   }
 
   const isAnnulation = (p: Paiement) => p.montant < 0;
@@ -162,7 +174,26 @@ export default function FactureDetail() {
             </div>
           )}
 
-          {facture.paiements.length === 0 && <p className="text-xs text-gray-400">Aucun paiement reçu</p>}
+          {/* Ligne acompte */}
+          {acompte > 0 && (
+            <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-gray-700">Acompte à la commande</p>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Acompte</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-2 shrink-0">
+                <p className="text-sm font-semibold text-green-600">+ {devise} {acompte.toLocaleString()}</p>
+                <button onClick={() => setConfirmAnnulAcompte(true)}
+                  className="p-1 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors" title="Annuler l'acompte">
+                  <RotateCcw size={13} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {facture.paiements.length === 0 && acompte === 0 && <p className="text-xs text-gray-400">Aucun paiement reçu</p>}
 
           {(() => {
             // IDs des paiements positifs qui ont été annulés
@@ -311,6 +342,31 @@ export default function FactureDetail() {
               <button onClick={() => annulerPaiement(confirmAnnuler)} disabled={savingAnnul}
                 className="py-3 rounded-xl bg-red-600 text-white text-sm font-medium disabled:opacity-60">
                 {savingAnnul ? "Annulation…" : "Oui, annuler"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal annulation acompte */}
+      {confirmAnnulAcompte && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
+          <div className="bg-white w-full rounded-t-2xl p-4 pb-24 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900">Annuler l&apos;acompte ?</h2>
+            <div className="bg-red-50 rounded-xl p-3">
+              <p className="text-xs text-gray-500">Acompte à annuler</p>
+              <p className="text-xl font-bold text-red-600">− {devise} {acompte.toLocaleString()}</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              L&apos;acompte sera retiré et la facture sera mise à jour en conséquence.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setConfirmAnnulAcompte(false)}
+                className="py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600">
+                Garder
+              </button>
+              <button onClick={annulerAcompte} disabled={savingAnnulAcompte}
+                className="py-3 rounded-xl bg-red-600 text-white text-sm font-medium disabled:opacity-60">
+                {savingAnnulAcompte ? "Annulation…" : "Oui, annuler"}
               </button>
             </div>
           </div>

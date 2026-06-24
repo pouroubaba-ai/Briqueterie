@@ -18,6 +18,15 @@ export async function POST(req: NextRequest) {
   const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const { clientId, devisId, dateLivraisonPrevue, acompte, transport, notes, lignes } = await req.json();
+
+  // Valider que l'acompte ne dépasse pas le total de la commande
+  if (acompte && acompte > 0 && lignes?.length) {
+    const totalCommande = lignes.reduce((s: number, l: { quantite: number; prixUnit: number }) => s + l.quantite * l.prixUnit, 0) + (transport ?? 0);
+    if (acompte > totalCommande) {
+      return NextResponse.json({ error: `L'acompte (${acompte}) ne peut pas dépasser le total de la commande (${totalCommande}).` }, { status: 400 });
+    }
+  }
+
   const count = await prisma.commande.count({ where: { userId } });
   const numero = `BC-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
