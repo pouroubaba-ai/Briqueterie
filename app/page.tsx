@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, Wallet, FileText, ChevronRight, Building2, Users, ChevronDown, ChevronUp, AlertTriangle, Factory } from "lucide-react";
+import { ChevronRight, Building2, Users, ChevronDown, ChevronUp, Factory } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -14,9 +14,9 @@ type TopFourn  = { id: number; nom: string; total: number };
 type ProdBrique = { nombreSacs: number; quantiteAjoutee: number; prixParSac: number; brique: { nom: string; prixVente: number } };
 type Production = { id: number; date: string; totalSacs: number; montantDu: number; montantVerse: number; briques: ProdBrique[] };
 type DashData = {
-  recettes: number; impayesMois: number; depenses: number; beneficeNet: number;
-  resteAVerser: number; resteDuFournisseurs: number; totalPertes: number;
-  depensesProduction: number; depensesFournisseurs: number;
+  recettes: number; totalPaye: number; impayesMois: number; depenses: number; beneficeNet: number;
+  resteAVerser: number; resteDuFournisseurs: number; totalPertes: number; totalStockValeur: number;
+  depensesProduction: number; depensesFournisseurs: number; depensesDiverses: number;
   productionsMois: Production[];
   historique: HistPoint[];
   repartitionDepenses: DonutSlice[];
@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [customA,  setCustomA]  = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [productionExpanded, setProductionExpanded] = useState(false);
+  const [popup, setPopup] = useState<"depenses" | "benefice-reel" | "benefice-theorique" | null>(null);
 
   useEffect(() => {
     fetch("/api/parametres").then(r => r.json()).then(p => { if (p.devise) setDevise(p.devise); });
@@ -118,65 +119,110 @@ export default function Dashboard() {
 
       {!loading && data && (
         <div className="p-4 space-y-4">
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Recettes",     value: data.recettes,    color: "text-green-600",  bg: "bg-green-50",  icon: TrendingUp },
-              { label: "Impayés",      value: data.impayesMois, color: "text-red-500",    bg: "bg-red-50",    icon: FileText   },
-              { label: "Dépenses",     value: data.depenses,    color: "text-orange-500", bg: "bg-orange-50", icon: Wallet     },
-              {
-                label: "Bénéfice net", value: data.beneficeNet,
-                color: data.beneficeNet >= 0 ? "text-green-600" : "text-red-500",
-                bg:    data.beneficeNet >= 0 ? "bg-green-50"    : "bg-red-50",
-                icon: TrendingUp,
-              },
-            ].map(({ label, value, color, bg, icon: Icon }) => (
-              <div key={label} className="bg-white rounded-xl p-3 border border-gray-100">
-                <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center mb-2`}>
-                  <Icon size={16} className={color} />
-                </div>
-                <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                <p className={`text-sm font-bold ${color}`}>{fmt(value, devise)}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* KPI dette unique + pertes */}
+          {/* 4 cases principales */}
           {(() => {
-            const totalDu = data.resteAVerser + data.resteDuFournisseurs;
-            const pctProd = totalDu > 0 ? Math.round(data.resteAVerser / totalDu * 100) : 0;
-            const pctFourn = totalDu > 0 ? 100 - pctProd : 0;
+            const totalDettes = data.resteAVerser + data.resteDuFournisseurs;
+            const beneficeReel = data.totalPaye - data.depenses;
+            const beneficeTheorique = data.recettes - data.depenses - totalDettes;
             return (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl p-3 border border-orange-100">
-                  <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
-                    <Wallet size={16} className="text-orange-500" />
-                  </div>
-                  <p className="text-xs text-gray-400 mb-0.5">Total dettes</p>
-                  <p className="text-sm font-bold text-orange-500">{fmt(totalDu, devise)}</p>
-                  {totalDu > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
-                        <span className="text-xs text-gray-400 flex-1">Production</span>
-                        <span className="text-xs font-medium text-orange-400">{pctProd}%</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                        <span className="text-xs text-gray-400 flex-1">Fournisseurs</span>
-                        <span className="text-xs font-medium text-blue-400">{pctFourn}%</span>
-                      </div>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Case 1 — CA */}
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">Chiffre d&apos;affaires</p>
+                    <p className="text-sm font-bold text-gray-900">{fmt(data.recettes, devise)}</p>
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                      <p className="text-xs text-gray-400">Encaissé</p>
+                      <p className="text-sm font-bold text-green-600">{fmt(data.totalPaye, devise)}</p>
                     </div>
-                  )}
-                </div>
-                <div className="bg-white rounded-xl p-3 border border-red-100">
-                  <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center mb-2">
-                    <AlertTriangle size={16} className="text-red-500" />
                   </div>
-                  <p className="text-xs text-gray-400 mb-0.5">Total pertes</p>
-                  <p className="text-sm font-bold text-red-500">{fmt(data.totalPertes, devise)}</p>
+
+                  {/* Case 2 — Dépenses */}
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">Dépenses</p>
+                    <p className="text-sm font-bold text-gray-900">{fmt(data.depenses, devise)}</p>
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs text-gray-400">À venir</p>
+                        <button onClick={() => setPopup("depenses")}
+                          className="w-4 h-4 rounded-full border border-gray-300 text-gray-400 text-xs flex items-center justify-center flex-shrink-0 italic font-medium leading-none">!</button>
+                      </div>
+                      <p className="text-sm font-bold text-orange-500">{fmt(totalDettes, devise)}</p>
+                    </div>
+                  </div>
+
+                  {/* Case 3 — Stock */}
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">Stock</p>
+                    <p className="text-sm font-bold text-gray-900">{fmt(data.totalStockValeur, devise)}</p>
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                      <p className="text-xs text-gray-400">Pertes</p>
+                      <p className="text-sm font-bold text-red-500">{fmt(data.totalPertes, devise)}</p>
+                    </div>
+                  </div>
+
+                  {/* Case 4 — Bénéfice */}
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">Bénéfice</p>
+                    <div className="flex items-center gap-1">
+                      <p className={`text-sm font-bold ${beneficeReel >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(beneficeReel, devise)}</p>
+                      <button onClick={() => setPopup("benefice-reel")}
+                        className="w-4 h-4 rounded-full border border-gray-300 text-gray-400 text-xs flex items-center justify-center flex-shrink-0 italic font-medium leading-none">!</button>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs text-gray-400">Théorique</p>
+                        <button onClick={() => setPopup("benefice-theorique")}
+                          className="w-4 h-4 rounded-full border border-gray-300 text-gray-400 text-xs flex items-center justify-center flex-shrink-0 italic font-medium leading-none">!</button>
+                      </div>
+                      <p className={`text-sm font-bold ${beneficeTheorique >= 0 ? "text-gray-600" : "text-red-500"}`}>{fmt(beneficeTheorique, devise)}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+
+                {/* Popups */}
+                {popup && (
+                  <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setPopup(null)}>
+                    <div className="bg-white w-full rounded-t-2xl p-5 pb-10" onClick={e => e.stopPropagation()}>
+                      {popup === "depenses" && (
+                        <>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">Dépenses à venir</p>
+                          <p className="text-xs text-gray-400 mb-4">Montants dus, non encore payés</p>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Dettes production</span><span className="font-semibold text-orange-500">{fmt(data.resteAVerser, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Dettes fournisseurs</span><span className="font-semibold text-orange-500">{fmt(data.resteDuFournisseurs, devise)}</span></div>
+                            <div className="flex justify-between text-sm pt-3 border-t border-gray-100"><span className="font-semibold text-gray-900">Total à venir</span><span className="font-bold text-orange-500">{fmt(totalDettes, devise)}</span></div>
+                          </div>
+                        </>
+                      )}
+                      {popup === "benefice-reel" && (
+                        <>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">Bénéfice réel</p>
+                          <p className="text-xs text-gray-400 mb-4">Ce que tu as vraiment en poche</p>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Encaissé</span><span className="font-semibold text-green-600">+ {fmt(data.totalPaye, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Dépenses payées</span><span className="font-semibold text-red-500">− {fmt(data.depenses, devise)}</span></div>
+                            <div className="flex justify-between text-sm pt-3 border-t border-gray-100"><span className="font-semibold text-gray-900">Bénéfice réel</span><span className={`font-bold ${beneficeReel >= 0 ? "text-green-600" : "text-red-500"}`}>= {fmt(beneficeReel, devise)}</span></div>
+                          </div>
+                        </>
+                      )}
+                      {popup === "benefice-theorique" && (
+                        <>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">Bénéfice théorique</p>
+                          <p className="text-xs text-gray-400 mb-4">Si tous les clients payaient et toutes les dettes réglées</p>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Chiffre d&apos;affaires</span><span className="font-semibold text-green-600">+ {fmt(data.recettes, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Dépenses payées</span><span className="font-semibold text-red-500">− {fmt(data.depenses, devise)}</span></div>
+                            <div className="flex justify-between text-sm"><span className="text-gray-500">Dettes restantes</span><span className="font-semibold text-red-500">− {fmt(totalDettes, devise)}</span></div>
+                            <div className="flex justify-between text-sm pt-3 border-t border-gray-100"><span className="font-semibold text-gray-900">Bénéfice théorique</span><span className={`font-bold ${beneficeTheorique >= 0 ? "text-gray-700" : "text-red-500"}`}>= {fmt(beneficeTheorique, devise)}</span></div>
+                          </div>
+                        </>
+                      )}
+                      <button onClick={() => setPopup(null)} className="mt-5 w-full py-3 rounded-xl bg-gray-100 text-sm font-medium text-gray-600">Fermer</button>
+                    </div>
+                  </div>
+                )}
+              </>
             );
           })()}
 

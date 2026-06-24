@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    briques, totalStockValeur, recettes, impayesMois, depenses,
+    briques, totalStockValeur, recettes, totalPaye, impayesMois, depenses,
     depensesProduction, depensesFournisseurs, depensesDiverses: depensesDiversesTotal,
     beneficeNet, totalPertes, resteAVerser, resteDuFournisseurs,
     facturesRecentes,
