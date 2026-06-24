@@ -12,12 +12,16 @@ function granulariteAuto(de: Date, a: Date) {
 
 async function getCaDepenses(userId: number, de: Date, a: Date) {
   const [factures, productions, versements, depenses] = await Promise.all([
-    prisma.facture.findMany({ where: { userId, createdAt: { gte: de, lt: a } }, include: { paiements: true } }),
+    prisma.facture.findMany({ where: { userId, statut: { not: "annulee" }, livraison: { commande: { statut: { not: "annule" } } }, createdAt: { gte: de, lt: a } }, include: { paiements: true, livraison: { include: { commande: true } } } }),
     prisma.productionJour.findMany({ where: { userId, date: { gte: de, lt: a }, statut: { not: "annule" } } }),
     prisma.versementFournisseur.findMany({ where: { fournisseur: { userId }, date: { gte: de, lt: a } } }),
     prisma.depense.findMany({ where: { userId, date: { gte: de, lt: a } } }),
   ]);
-  const ca = factures.reduce((s, f) => s + f.paiements.reduce((ps, p) => ps + p.montant, 0), 0);
+  const ca = factures.reduce((s, f) => {
+    const paiements = f.paiements.reduce((ps, p) => ps + p.montant, 0);
+    const acompte = f.livraison.commande.acompte ?? 0;
+    return s + paiements + acompte;
+  }, 0);
   const dep = productions.reduce((s, p) => s + p.montantVerse, 0) + versements.reduce((s, v) => s + v.montant, 0) + depenses.reduce((s, d) => s + d.montant, 0);
   return { ca, dep };
 }
@@ -36,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const [briques, factures, sorties, productions, versementsFourn, depensesDiverses, tousLesAchats, tousLesVersementsFourn] = await Promise.all([
     prisma.brique.findMany({ where: { userId } }),
-    prisma.facture.findMany({ where: { userId, livraison: { commande: { statut: { not: "annule" } } } }, include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: { include: { client: true } } } } }, orderBy: { createdAt: "desc" } }),
+    prisma.facture.findMany({ where: { userId, statut: { not: "annulee" }, livraison: { commande: { statut: { not: "annule" } } } }, include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: { include: { client: true } } } } }, orderBy: { createdAt: "desc" } }),
     prisma.sortieStock.findMany({ where: { userId, date: { gte: debut, lte: fin }, type: { notIn: ["production", "annulation_production", "retour_ciment"] } }, include: { brique: true } }),
     prisma.productionJour.findMany({ where: { userId, date: { gte: debut, lte: fin }, statut: { not: "annule" } }, include: { briques: { include: { brique: true } } } }),
     prisma.versementFournisseur.findMany({ where: { fournisseur: { userId }, date: { gte: debut, lte: fin } } }),
