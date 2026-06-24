@@ -13,7 +13,7 @@ function granulariteAuto(de: Date, a: Date) {
 async function getCaDepenses(userId: number, de: Date, a: Date) {
   const [factures, productions, versements, depenses] = await Promise.all([
     prisma.facture.findMany({ where: { userId, createdAt: { gte: de, lt: a } }, include: { paiements: true } }),
-    prisma.productionJour.findMany({ where: { userId, date: { gte: de, lt: a } } }),
+    prisma.productionJour.findMany({ where: { userId, date: { gte: de, lt: a }, statut: { not: "annule" } } }),
     prisma.versementFournisseur.findMany({ where: { fournisseur: { userId }, date: { gte: de, lt: a } } }),
     prisma.depense.findMany({ where: { userId, date: { gte: de, lt: a } } }),
   ]);
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     prisma.brique.findMany({ where: { userId } }),
     prisma.facture.findMany({ where: { userId }, include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: { include: { client: true } } } } }, orderBy: { createdAt: "desc" } }),
     prisma.sortieStock.findMany({ where: { userId, date: { gte: debut, lte: fin }, type: { notIn: ["production", "annulation_production"] } }, include: { brique: true } }),
-    prisma.productionJour.findMany({ where: { userId, date: { gte: debut, lte: fin } }, include: { briques: { include: { brique: true } } } }),
+    prisma.productionJour.findMany({ where: { userId, date: { gte: debut, lte: fin }, statut: { not: "annule" } }, include: { briques: { include: { brique: true } } } }),
     prisma.versementFournisseur.findMany({ where: { fournisseur: { userId }, date: { gte: debut, lte: fin } } }),
     prisma.depense.findMany({ where: { userId, date: { gte: debut, lte: fin } } }),
     prisma.achatFournisseur.findMany({ where: { fournisseur: { userId } }, include: { fournisseur: true } }),
