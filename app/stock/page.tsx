@@ -26,6 +26,7 @@ export default function Stock() {
   const [savingSortie, setSavingSortie] = useState(false);
   const [confirmDel, setConfirmDel] = useState<Brique | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortieError, setSortieError] = useState("");
   const [delError, setDelError] = useState("");
   const [formError, setFormError] = useState("");
   const savingBriqueRef = useRef(false);
@@ -73,6 +74,7 @@ export default function Stock() {
 
   async function saveSortie() {
     if (savingSortieRef.current || !sortieForm.briqueId || sortieForm.quantite <= 0) return;
+    setSortieError("");
     savingSortieRef.current = true; setSavingSortie(true);
     try {
       const res = await fetch("/api/sorties-stock", {
@@ -82,7 +84,7 @@ export default function Stock() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert("Erreur : " + (err.error || res.status));
+        setSortieError(err.error || "Erreur lors de l'enregistrement.");
         return;
       }
       setShowSortie(false);
@@ -360,6 +362,11 @@ export default function Stock() {
             {sortieForm.briqueId > 0 && (
               <div className="bg-red-50 rounded-lg p-3 text-xs text-red-700">
                 Valeur de la sortie : {devise} {((briques.find(b => b.id === sortieForm.briqueId)?.prixVente ?? 0) * sortieForm.quantite).toLocaleString()}
+              </div>
+            )}
+            {sortieError && (
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <span className="text-red-500">⚠</span> {sortieError}
               </div>
             )}
             <button onClick={saveSortie} disabled={!sortieForm.briqueId || savingSortie}
