@@ -168,6 +168,7 @@ model LigneLivraison {
   brique      Brique   @relation(fields: [briqueId], references: [id])
   quantiteCommandee Int
   quantiteLivree    Int
+  prixUnit          Float @default(0)
 }
 
 model Facture {

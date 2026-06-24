@@ -11,7 +11,7 @@ type Paiement = { id: number; montant: number; date: string; notes: string };
 type Facture = {
   id: number; numero: string; statut: string; dateEmission: string; dateEcheance: string;
   transport: number; notes: string;
-  livraison: { commande: { client: { nom: string; telephone: string; adresse: string }; acompte: number }; lignes: { quantiteLivree: number; quantiteCommandee: number; brique: { nom: string; dimensions: string | null; prixVente: number } }[] };
+  livraison: { commande: { client: { nom: string; telephone: string; adresse: string }; acompte: number }; lignes: { quantiteLivree: number; quantiteCommandee: number; prixUnit: number; brique: { nom: string; dimensions: string | null; prixVente: number } }[] };
   paiements: Paiement[];
 };
 
@@ -47,7 +47,7 @@ export default function FactureDetail() {
 
   if (!facture) return <div className="flex items-center justify-center min-h-screen"><div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" /></div>;
 
-  const sousTotal = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * l.brique.prixVente, 0);
+  const sousTotal = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0);
   const total = sousTotal + facture.transport;
   const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0);
   const reste = total - totalPaye;
@@ -120,14 +120,14 @@ export default function FactureDetail() {
             <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div>
                 <p className="text-sm text-gray-900">{l.brique.nom}{l.brique.dimensions ? ` — ${l.brique.dimensions}` : ""}</p>
-                <p className="text-xs text-gray-400">{devise} {l.brique.prixVente.toLocaleString()}/u</p>
+                <p className="text-xs text-gray-400">{devise} {(l.prixUnit || l.brique.prixVente).toLocaleString()}/u</p>
                 {l.quantiteLivree < l.quantiteCommandee && (
                   <p className="text-xs text-yellow-600">Commandé: {l.quantiteCommandee} — Livré: {l.quantiteLivree}</p>
                 )}
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500">× {l.quantiteLivree}</p>
-                <p className="text-sm font-semibold text-gray-900">{devise} {(l.quantiteLivree * l.brique.prixVente).toLocaleString()}</p>
+                <p className="text-sm font-semibold text-gray-900">{devise} {(l.quantiteLivree * (l.prixUnit || l.brique.prixVente)).toLocaleString()}</p>
               </div>
             </div>
           ))}

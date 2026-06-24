@@ -6,7 +6,7 @@ import Link from "next/link";
 type Livraison = {
   id: number; numero: string; statut: string; dateLivraison: string;
   commande: { client: { nom: string }; acompte: number };
-  lignes: { quantiteLivree: number; quantiteCommandee: number; brique: { nom: string; prixVente: number } }[];
+  lignes: { quantiteLivree: number; quantiteCommandee: number; prixUnit: number; brique: { nom: string; prixVente: number } }[];
   facture: { id: number } | null;
 };
 
@@ -79,7 +79,7 @@ export default function Livraisons() {
           </div>
         )}
         {livraisons.map(l => {
-          const total = l.lignes.reduce((s, li) => s + li.quantiteLivree * li.brique.prixVente, 0);
+          const total = l.lignes.reduce((s, li) => s + li.quantiteLivree * (li.prixUnit || li.brique.prixVente), 0);
           const hasEcart = l.lignes.some(li => li.quantiteLivree < li.quantiteCommandee);
           return (
             <div key={l.id} className="bg-white rounded-xl border border-gray-100 p-4">

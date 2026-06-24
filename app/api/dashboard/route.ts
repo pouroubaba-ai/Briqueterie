@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   const facturesPeriode = factures.filter(f => new Date(f.createdAt) >= debut && new Date(f.createdAt) <= fin);
   const recettes = facturesPeriode.reduce((s, f) => s + f.paiements.reduce((ps, p) => ps + p.montant, 0), 0);
-  const totalFacture = facturesPeriode.reduce((s, f) => s + f.livraison.lignes.reduce((ls, l) => ls + l.quantiteLivree * l.brique.prixVente, 0) + f.transport, 0);
+  const totalFacture = facturesPeriode.reduce((s, f) => s + f.livraison.lignes.reduce((ls, l) => ls + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + f.transport, 0);
   const impayesMois = totalFacture - recettes;
   const depensesProduction = productions.reduce((s, p) => s + p.montantVerse, 0);
   const depensesFournisseurs = versementsFourn.reduce((s, v) => s + v.montant, 0);
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
   const top5Fournisseurs = Object.values(fournMap).sort((a, b) => b.total - a.total).slice(0, 5);
 
   const facturesRecentes = factures.slice(0, 5).map(f => {
-    const total = f.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * l.brique.prixVente, 0) + f.transport;
+    const total = f.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + f.transport;
     const paye = f.paiements.reduce((s, p) => s + p.montant, 0);
     return { ...f, totalFacture: total, totalPaye: paye, resteAPayer: total - paye };
   });

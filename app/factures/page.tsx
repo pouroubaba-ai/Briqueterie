@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type Facture = {
   id: number; numero: string; statut: string; createdAt: string; transport: number;
-  livraison: { commande: { client: { nom: string } }; lignes: { quantiteLivree: number; brique: { prixVente: number } }[] };
+  livraison: { commande: { client: { nom: string } }; lignes: { quantiteLivree: number; prixUnit: number; brique: { prixVente: number } }[] };
   paiements: { montant: number }[];
 };
 
@@ -67,7 +67,7 @@ export default function Factures() {
           </div>
         )}
         {filtrees.map(f => {
-          const total = f.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * l.brique.prixVente, 0) + f.transport;
+          const total = f.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + f.transport;
           const paye = f.paiements.reduce((s, p) => s + p.montant, 0);
           const reste = total - paye;
           return (

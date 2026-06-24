@@ -19,7 +19,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     if (!facture) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const lignes = facture.livraison.lignes.map((l) => ({
-      nom: l.brique.nom, dimensions: l.brique.dimensions ?? "", quantite: l.quantiteLivree, prixUnit: l.brique.prixVente,
+      nom: l.brique.nom, dimensions: l.brique.dimensions ?? "", quantite: l.quantiteLivree, prixUnit: l.prixUnit || l.brique.prixVente,
     }));
 
     const buffer = await renderToBuffer(createElement(PDFDocument, {

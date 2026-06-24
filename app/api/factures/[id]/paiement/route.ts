@@ -9,7 +9,7 @@ async function recalculStatut(factureId: number) {
     include: { paiements: true, livraison: { include: { lignes: { include: { brique: true } }, commande: true } } },
   });
   if (!facture) return;
-  const totalFacture = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * l.brique.prixVente, 0) + facture.transport;
+  const totalFacture = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + facture.transport;
   const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0);
   const statut = totalPaye >= totalFacture ? "payee" : totalPaye > 0 ? "partielle" : "impayee";
   await prisma.facture.update({ where: { id: factureId }, data: { statut } });
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!facture) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const totalFacture = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * l.brique.prixVente, 0) + facture.transport;
+  const totalFacture = facture.livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || l.brique.prixVente), 0) + facture.transport;
   const totalPaye = facture.paiements.reduce((s, p) => s + p.montant, 0);
   const reste = totalFacture - totalPaye;
 

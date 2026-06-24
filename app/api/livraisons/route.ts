@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const { commandeId, dateLivraison, livreur, notes, lignes } = await req.json();
 
+  // Récupérer les prix de la commande
+  const commande = await prisma.commande.findUnique({ where: { id: commandeId }, include: { lignes: true } });
+  const prixParBrique: Record<number, number> = {};
+  if (commande) {
+    for (const l of commande.lignes) prixParBrique[l.briqueId] = l.prixUnit;
+  }
+
   for (const l of lignes) {
     const brique = await prisma.brique.findUnique({ where: { id: l.briqueId } });
     if (brique && brique.stockActuel < l.quantiteLivree) {
@@ -36,8 +43,14 @@ export async function POST(req: NextRequest) {
   const count = await prisma.livraison.count({ where: { userId } });
   const numero = `BL-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
+  // Injecter le prixUnit de la commande dans chaque ligne
+  const lignesAvecPrix = lignes.map((l: { briqueId: number; quantiteCommandee: number; quantiteLivree: number }) => ({
+    ...l,
+    prixUnit: prixParBrique[l.briqueId] ?? 0,
+  }));
+
   const livraison = await prisma.livraison.create({
-    data: { userId, numero, commandeId, dateLivraison: new Date(dateLivraison), livreur: livreur ?? "", notes: notes ?? "", lignes: { create: lignes } },
+    data: { userId, numero, commandeId, dateLivraison: new Date(dateLivraison), livreur: livreur ?? "", notes: notes ?? "", lignes: { create: lignesAvecPrix } },
     include: { commande: { include: { client: true } }, lignes: { include: { brique: true } } },
   });
 
