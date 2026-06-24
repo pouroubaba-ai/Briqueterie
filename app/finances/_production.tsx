@@ -56,6 +56,7 @@ export default function ProductionTab({ devise }: { devise: string }) {
   const [savingVersGroupé, setSavingVersGroupé] = useState(false);
   const [confirmAnnul, setConfirmAnnul] = useState<Production | null>(null);
   const [annulling, setAnnulling] = useState(false);
+  const [annulError, setAnnulError] = useState("");
   const [savingProd, setSavingProd] = useState(false);
   const [savingVers, setSavingVers] = useState(false);
   const savingProdRef = useRef(false);
@@ -134,8 +135,16 @@ export default function ProductionTab({ devise }: { devise: string }) {
   async function annulerProduction() {
     if (!confirmAnnul || annulling) return;
     setAnnulling(true);
-    try { await fetch(`/api/production/${confirmAnnul.id}/annuler`, { method: "POST" }); setConfirmAnnul(null); setOpenId(null); load(); }
-    finally { setAnnulling(false); }
+    setAnnulError("");
+    try {
+      const res = await fetch(`/api/production/${confirmAnnul.id}/annuler`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setAnnulError(err.error || "Erreur lors de l'annulation.");
+        return;
+      }
+      setConfirmAnnul(null); setOpenId(null); load();
+    } finally { setAnnulling(false); }
   }
 
   const producsActives = productions.filter(p => p.statut !== "annule");
@@ -416,7 +425,8 @@ export default function ProductionTab({ devise }: { devise: string }) {
           <div className="bg-white w-full rounded-t-2xl p-4 pb-24">
             <div className="flex items-center justify-between mb-4"><h2 className="text-base font-semibold">Annuler la production ?</h2><button onClick={()=>setConfirmAnnul(null)}><X size={20} className="text-gray-400"/></button></div>
             <div className="bg-red-50 border border-red-100 rounded-xl p-3 mb-4 text-sm text-red-700 space-y-1"><p className="font-medium">Cette action va :</p><p>• Retirer les unités produites du stock</p>{confirmAnnul.montantVerse>0 && <p>• Annuler le versement de {devise} {confirmAnnul.montantVerse.toLocaleString()}</p>}</div>
-            <div className="flex gap-3"><button onClick={()=>setConfirmAnnul(null)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl font-medium text-sm">Garder</button><button onClick={annulerProduction} disabled={annulling} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-60">{annulling?"Annulation…":"Confirmer"}</button></div>
+            {annulError && <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-300 rounded-xl text-sm text-red-700 mb-3"><span className="shrink-0">⚠</span><span>{annulError}</span></div>}
+            <div className="flex gap-3"><button onClick={()=>{setConfirmAnnul(null);setAnnulError("");}} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl font-medium text-sm">Garder</button><button onClick={annulerProduction} disabled={annulling} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-60">{annulling?"Annulation…":"Confirmer"}</button></div>
           </div>
         </div>
       )}
