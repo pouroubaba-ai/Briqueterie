@@ -202,16 +202,18 @@ model Paiement {
 }
 
 model SortieStock {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  briqueId  Int
-  brique    Brique   @relation(fields: [briqueId], references: [id])
-  quantite  Int
-  type      String
-  notes     String   @default("")
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
+  id               Int             @id @default(autoincrement())
+  userId           Int
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  briqueId         Int
+  brique           Brique          @relation(fields: [briqueId], references: [id])
+  quantite         Int
+  type             String
+  notes            String          @default("")
+  date             DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  productionJourId Int?
+  productionJour   ProductionJour? @relation(fields: [productionJourId], references: [id], onDelete: SetNull)
 }
 
 model ProductionJour {
@@ -228,6 +230,7 @@ model ProductionJour {
 
   briques          ProductionJourBrique[]
   versementLignes  VersementGroupeLigne[]
+  sortiesStock     SortieStock[]
 }
 
 model Fournisseur {

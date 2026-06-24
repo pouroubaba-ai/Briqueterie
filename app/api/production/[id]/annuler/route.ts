@@ -8,8 +8,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   try {
     const { id } = await params;
+    const prodId = Number(id);
     const prod = await prisma.productionJour.findUnique({
-      where: { id: Number(id) },
+      where: { id: prodId },
       include: { briques: { include: { brique: true } } },
     });
     if (!prod) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -26,21 +27,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    // 2. Retourner les sacs de ciment consommés
-    const totalSacs = prod.briques.reduce((s, b) => s + b.nombreSacs, 0);
-    if (totalSacs > 0) {
-      const ciment = await prisma.brique.findFirst({ where: { userId, estCiment: true } });
-      if (ciment) {
-        await prisma.brique.update({ where: { id: ciment.id }, data: { stockActuel: { increment: totalSacs } } });
-        // Créer une entrée de type "retour_ciment" visible dans l'historique comme entrée
-        await prisma.sortieStock.create({
-          data: { userId, briqueId: ciment.id, quantite: totalSacs, type: "retour_ciment", notes: label, date: dateAnnul },
-        });
-      }
+    // 2. Retourner le ciment UNIQUEMENT si cette production en a vraiment utilisé
+    const sortieCiment = await prisma.sortieStock.findFirst({
+      where: { productionJourId: prodId, type: "production" },
+    });
+
+    if (sortieCiment) {
+      await prisma.brique.update({ where: { id: sortieCiment.briqueId }, data: { stockActuel: { increment: sortieCiment.quantite } } });
+      await prisma.sortieStock.create({
+        data: { userId, briqueId: sortieCiment.briqueId, quantite: sortieCiment.quantite, type: "retour_ciment", productionJourId: prodId, notes: label, date: dateAnnul },
+      });
     }
 
     const updated = await prisma.productionJour.update({
-      where: { id: Number(id) },
+      where: { id: prodId },
       data: { statut: "annule", montantVerse: 0, montantDu: 0 },
       include: { briques: { include: { brique: true } } },
     });

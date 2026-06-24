@@ -57,12 +57,16 @@ export async function POST(req: NextRequest) {
     }
 
     const ciment = await prisma.brique.findFirst({ where: { estCiment: true, userId } });
+    let totalSacsUtilises = 0;
     for (const b of briques as LigneIn[]) {
       if (!b.soustraireCiment || !b.nombreSacs) continue;
       if (!ciment?.id) continue;
+      totalSacsUtilises += b.nombreSacs;
       await prisma.brique.update({ where: { id: ciment.id }, data: { stockActuel: { decrement: b.nombreSacs } } });
+    }
+    if (totalSacsUtilises > 0 && ciment?.id) {
       await prisma.sortieStock.create({
-        data: { userId, briqueId: ciment.id, quantite: b.nombreSacs, type: "production", notes: `Sacs ciment utilisés en production du ${dateObj.toLocaleDateString("fr-FR")}`, date: dateObj },
+        data: { userId, briqueId: ciment.id, quantite: totalSacsUtilises, type: "production", productionJourId: production.id, notes: `Sacs ciment utilisés en production du ${dateObj.toLocaleDateString("fr-FR")}`, date: dateObj },
       });
     }
 
