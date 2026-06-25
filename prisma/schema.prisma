@@ -99,13 +99,14 @@ model Devis {
 }
 
 model LigneDevis {
-  id       Int    @id @default(autoincrement())
-  devisId  Int
-  devis    Devis  @relation(fields: [devisId], references: [id], onDelete: Cascade)
-  briqueId Int
-  brique   Brique @relation(fields: [briqueId], references: [id])
-  quantite Int
-  prixUnit Float
+  id            Int    @id @default(autoincrement())
+  devisId       Int
+  devis         Devis  @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  briqueId      Int
+  brique        Brique @relation(fields: [briqueId], references: [id])
+  quantite      Int
+  prixUnit      Float
+  transportUnit Float  @default(0)
 }
 
 model Commande {

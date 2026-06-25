@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, FileText, X, Trash2 } from "lucide-react";
 import PDFButton from "@/components/PDFButton";
+import CycleVenteNav from "@/components/CycleVenteNav";
 
 type Client = { id: number; nom: string; telephone: string };
 type Brique = { id: number; nom: string; dimensions: string | null; prixVente: number; stockActuel: number };
-type Devis = { id: number; numero: string; statut: string; createdAt: string; dateValidite: string; clientId: number; client: { nom: string }; lignes: { briqueId: number; quantite: number; prixUnit: number }[] };
+type Devis = { id: number; numero: string; statut: string; createdAt: string; dateValidite: string; clientId: number; transport: number; client: { nom: string }; lignes: { briqueId: number; quantite: number; prixUnit: number; transportUnit: number }[] };
 
 function StatutBadge({ statut }: { statut: string }) {
   const map: Record<string, string> = { brouillon: "bg-gray-100 text-gray-600", envoye: "bg-blue-100 text-blue-800", accepte: "bg-green-100 text-green-800", refuse: "bg-red-100 text-red-800", confirme: "bg-purple-100 text-purple-800", expire: "bg-yellow-100 text-yellow-800" };
@@ -25,7 +26,7 @@ export default function Devis() {
   const [clientForm, setClientForm] = useState({ nom: "", telephone: "", adresse: "" });
   const defaultDate = () => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); };
   const [form, setForm] = useState({ clientId: 0, dateValidite: defaultDate(), notes: "" });
-  const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number; description: string }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0, description: "" }]);
+  const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number; transportUnit: number; description: string }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0, transportUnit: 0, description: "" }]);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [convertDevis, setConvertDevis] = useState<Devis | null>(null);
@@ -47,7 +48,7 @@ export default function Devis() {
       // Fusionner avec la ligne existante
       setLignes(ls => ls.map((l, j) => j === existant ? { ...l, quantite: l.quantite + ls[i].quantite } : l).filter((_, j) => j !== i));
     } else {
-      const nl = [...lignes]; nl[i] = { ...nl[i], briqueId, prixUnit: b?.prixVente ?? 0 }; setLignes(nl);
+      const nl = [...lignes]; nl[i] = { ...nl[i], briqueId, prixUnit: b?.prixVente ?? 0, transportUnit: nl[i].transportUnit }; setLignes(nl);
     }
   }
 
@@ -57,6 +58,7 @@ export default function Devis() {
   }
 
   const totalDevis = lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0);
+  const totalTransport = lignes.reduce((s, l) => s + l.quantite * (l.transportUnit ?? 0), 0);
 
   async function saveClient() {
     const r = await fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientForm) });
@@ -67,21 +69,23 @@ export default function Devis() {
 
   async function save() {
     if (savingRef.current) return;
-    const validLignes = lignes.filter(l => l.briqueId > 0 && l.quantite > 0).map(({ briqueId, quantite, prixUnit }) => ({ briqueId, quantite, prixUnit }));
+    const validLignes = lignes.filter(l => l.briqueId > 0 && l.quantite > 0).map(({ briqueId, quantite, prixUnit, transportUnit }) => ({ briqueId, quantite, prixUnit, transportUnit: transportUnit ?? 0 }));
     if (!form.clientId || !validLignes.length) return;
     savingRef.current = true; setSaving(true);
     try {
       await fetch("/api/devis", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, lignes: validLignes }) });
-      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0, description: "" }]); setForm({ clientId: 0, dateValidite: defaultDate(), notes: "" }); load();
+
+      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0, transportUnit: 0, description: "" }]); setForm({ clientId: 0, dateValidite: defaultDate(), notes: "" }); load();
     } finally { savingRef.current = false; setSaving(false); }
   }
 
   async function convertirCommande() {
     if (!convertDevis) return;
     setConvertError("");
-    const totalDevis = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + convertForm.transport;
-    if (convertForm.acompte > 0 && convertForm.acompte > totalDevis) {
-      setConvertError(`L'acompte ne peut pas dépasser le total (${totalDevis.toLocaleString()}).`);
+    const transportDevis = convertDevis.transport ?? 0;
+    const totalAvecTransport = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + transportDevis;
+    if (convertForm.acompte > 0 && convertForm.acompte > totalAvecTransport) {
+      setConvertError(`L'acompte ne peut pas dépasser le total (${devise} ${totalAvecTransport.toLocaleString()}).`);
       return;
     }
     const res = await fetch("/api/commandes", {
@@ -90,7 +94,7 @@ export default function Devis() {
       body: JSON.stringify({
         clientId: convertDevis.clientId,
         devisId: convertDevis.id,
-        transport: convertForm.transport,
+        transport: transportDevis,
         acompte: convertForm.acompte,
         lignes: convertDevis.lignes.map(l => ({ briqueId: l.briqueId, quantite: l.quantite, prixUnit: l.prixUnit })),
       }),
@@ -122,6 +126,7 @@ export default function Devis() {
           <Plus size={14} /> Nouveau
         </button>
       </div>
+      <CycleVenteNav />
 
       <div className="p-4 space-y-3">
         {devisList.filter(d => showConfirmes ? true : d.statut !== "confirme").length === 0 && (
@@ -220,7 +225,7 @@ export default function Devis() {
                       <p className="text-xs text-gray-400 mt-1">Stock disponible : <span className={bSelected.stockActuel === 0 ? "text-red-500 font-medium" : "text-gray-600 font-medium"}>{bSelected.stockActuel.toLocaleString()} unités</span></p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-400 mb-1 block">Quantité</label>
                       <input type="number" min={1} value={l.quantite || ""}
@@ -228,12 +233,21 @@ export default function Devis() {
                         className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Prix unitaire ({devise})</label>
+                      <label className="text-xs text-gray-400 mb-1 block">Prix/u ({devise})</label>
                       <input type="number" value={l.prixUnit || ""}
                         onChange={e => { const nl = [...lignes]; nl[i].prixUnit = Number(e.target.value); setLignes(nl); }}
                         className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
                     </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Transport/u</label>
+                      <input type="number" min={0} value={l.transportUnit || ""}
+                        onChange={e => { const nl = [...lignes]; nl[i].transportUnit = Number(e.target.value); setLignes(nl); }}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
+                    </div>
                   </div>
+                  {l.transportUnit > 0 && l.quantite > 0 && (
+                    <p className="text-xs text-blue-600 mt-1">Transport ligne : {devise} {(l.quantite * l.transportUnit).toLocaleString()}</p>
+                  )}
                 </div>
               );
             })}
@@ -251,9 +265,10 @@ export default function Devis() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
             </div>
 
-            <div className="bg-green-50 rounded-xl p-3 mb-4 flex justify-between">
-              <span className="text-sm text-gray-600">Total devis</span>
-              <span className="text-sm font-bold text-green-700">{devise} {totalDevis.toLocaleString()}</span>
+            <div className="bg-green-50 rounded-xl p-3 mb-4 space-y-1">
+              <div className="flex justify-between text-xs text-gray-500"><span>Sous-total articles</span><span>{devise} {totalDevis.toLocaleString()}</span></div>
+              {totalTransport > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Transport total</span><span>{devise} {totalTransport.toLocaleString()}</span></div>}
+              <div className="flex justify-between text-sm font-bold text-green-700 pt-1 border-t border-green-100"><span>Total devis</span><span>{devise} {(totalDevis + totalTransport).toLocaleString()}</span></div>
             </div>
 
             <button onClick={save} disabled={!form.clientId || saving}
@@ -316,42 +331,28 @@ export default function Devis() {
               <button onClick={() => setConvertDevis(null)}><X size={20} className="text-gray-400" /></button>
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-xs text-gray-500">Total devis</p>
-              <p className="text-lg font-bold text-gray-900">{devise} {convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0).toLocaleString()}</p>
-            </div>
-
             {(() => {
-              const totalAvecTransport = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + convertForm.transport;
+              const transportDevis = convertDevis.transport ?? 0;
+              const sousTotal = convertDevis.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0);
+              const totalAvecTransport = sousTotal + transportDevis;
               const acompteInvalide = convertForm.acompte > 0 && convertForm.acompte > totalAvecTransport;
               return (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Transport ({devise})</label>
-                      <input type="number" value={convertForm.transport || ""} placeholder="0"
-                        onChange={e => setConvertForm(f => ({ ...f, transport: Number(e.target.value) }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Acompte ({devise})</label>
-                      <input type="number" value={convertForm.acompte || ""} placeholder="0"
-                        onChange={e => { setConvertError(""); setConvertForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
-                        className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${acompteInvalide ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
-                      {acompteInvalide && (
-                        <p className="text-xs text-red-600 mt-1">Max : {devise} {totalAvecTransport.toLocaleString()}</p>
-                      )}
-                    </div>
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-1">
+                    <div className="flex justify-between text-xs text-gray-500"><span>Articles</span><span>{devise} {sousTotal.toLocaleString()}</span></div>
+                    {transportDevis > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Transport</span><span>{devise} {transportDevis.toLocaleString()}</span></div>}
+                    <div className="flex justify-between text-sm font-bold text-gray-900 border-t border-gray-200 pt-1"><span>Total</span><span>{devise} {totalAvecTransport.toLocaleString()}</span></div>
                   </div>
 
-                  {convertError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{convertError}</div>
-                  )}
-
-                  <div className="bg-green-50 rounded-xl p-3 flex justify-between">
-                    <span className="text-sm text-gray-600">Total avec transport</span>
-                    <span className="text-sm font-bold text-green-700">{devise} {totalAvecTransport.toLocaleString()}</span>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Acompte reçu ({devise}) — optionnel</label>
+                    <input type="number" value={convertForm.acompte || ""} placeholder="0"
+                      onChange={e => { setConvertError(""); setConvertForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
+                      className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${acompteInvalide ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
+                    {acompteInvalide && <p className="text-xs text-red-600 mt-1">Max : {devise} {totalAvecTransport.toLocaleString()}</p>}
                   </div>
+
+                  {convertError && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{convertError}</div>}
 
                   <button onClick={convertirCommande} disabled={acompteInvalide}
                     className="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-40">

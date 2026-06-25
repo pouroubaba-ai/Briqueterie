@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Truck, ChevronRight, Plus, X } from "lucide-react";
+
 import Link from "next/link";
+import CycleVenteNav from "@/components/CycleVenteNav";
 
 type Livraison = {
   id: number; numero: string; statut: string; dateLivraison: string;
@@ -24,8 +26,6 @@ export default function Livraisons() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const [savingFacture, setSavingFacture] = useState<number | null>(null);
-  const savingFactureRef = useRef(false);
 
   function load() {
     fetch("/api/livraisons").then(r => r.json()).then(setLivraisons);
@@ -49,16 +49,6 @@ export default function Livraisons() {
     } finally { savingRef.current = false; setSaving(false); }
   }
 
-  async function creerFacture(livraisonId: number) {
-    if (savingFactureRef.current) return;
-    savingFactureRef.current = true; setSavingFacture(livraisonId);
-    try {
-      const echeance = new Date(); echeance.setDate(echeance.getDate() + 14);
-      await fetch("/api/factures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ livraisonId, dateEcheance: echeance.toISOString() }) });
-      load();
-    } finally { savingFactureRef.current = false; setSavingFacture(null); }
-  }
-
   return (
     <div className="pb-4">
       <div className="bg-white border-b border-gray-200 px-4 py-4 z-10 flex items-center justify-between">
@@ -71,6 +61,7 @@ export default function Livraisons() {
         </button>
       </div>
 
+      <CycleVenteNav />
       <div className="p-4 space-y-3">
         {livraisons.length === 0 && (
           <div className="text-center py-12">
@@ -95,11 +86,7 @@ export default function Livraisons() {
                 <p className="text-xs text-gray-500">{l.lignes.length} article(s)</p>
                 <p className="text-sm font-bold text-gray-900">{devise} {total.toLocaleString()}</p>
               </div>
-              {!l.facture ? (
-                <button onClick={() => creerFacture(l.id)} disabled={savingFacture === l.id} className="w-full py-2 rounded-lg bg-green-600 text-white text-xs font-medium disabled:opacity-60">
-                  {savingFacture === l.id ? "Création…" : "Créer la facture"}
-                </button>
-              ) : (
+              {l.facture && (
                 <Link href={`/factures/${l.facture.id}`} className="flex items-center justify-center gap-1 w-full py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600">
                   Voir la facture <ChevronRight size={12} />
                 </Link>

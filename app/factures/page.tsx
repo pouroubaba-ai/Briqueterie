@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Receipt, ChevronRight, XCircle } from "lucide-react";
 import Link from "next/link";
+import CycleVenteNav from "@/components/CycleVenteNav";
 
 type Facture = {
   id: number; numero: string; statut: string; createdAt: string; transport: number;
@@ -59,6 +60,7 @@ export default function Factures() {
         </div>
       </div>
 
+      <CycleVenteNav />
       <div className="p-4 space-y-3">
         {filtrees.length === 0 && (
           <div className="text-center py-12">

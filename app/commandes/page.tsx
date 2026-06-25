@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, ShoppingCart, ChevronRight, X, Trash2 } from "lucide-react";
 import Link from "next/link";
+import CycleVenteNav from "@/components/CycleVenteNav";
 
 type Client = { id: number; nom: string; telephone: string };
 type Brique = { id: number; nom: string; dimensions: string | null; prixVente: number; stockActuel: number };
@@ -101,6 +102,7 @@ export default function Commandes() {
         </button>
       </div>
 
+      <CycleVenteNav />
       <div className="flex gap-2 px-4 pt-3 overflow-x-auto pb-1">
         {(["tous", "en_cours", "livre", "annule"] as const).map(f => (
           <button key={f} onClick={() => setFiltreStatut(f)}

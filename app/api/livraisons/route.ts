@@ -59,5 +59,23 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.commande.update({ where: { id: commandeId }, data: { statut: "livre" } });
+
+  // Auto-créer la facture
+  const factureCount = await prisma.facture.count({ where: { userId } });
+  const factureNumero = `FAC-${new Date().getFullYear()}-${String(factureCount + 1).padStart(3, "0")}`;
+  const dateEcheance = new Date(); dateEcheance.setDate(dateEcheance.getDate() + 14);
+  const transportCommande = commande?.transport ?? 0;
+  const facture = await prisma.facture.create({
+    data: { userId, numero: factureNumero, livraisonId: livraison.id, dateEcheance, transport: transportCommande, notes: "" },
+    include: { livraison: { include: { commande: true, lignes: { include: { brique: true } } } } },
+  });
+  // Appliquer l'acompte si existant
+  const acompte = commande?.acompte ?? 0;
+  if (acompte > 0) {
+    const totalFacture = livraison.lignes.reduce((s, l) => s + l.quantiteLivree * (l.prixUnit || 0), 0) + transportCommande;
+    const statut = acompte >= totalFacture ? "payee" : "partielle";
+    await prisma.facture.update({ where: { id: facture.id }, data: { statut } });
+  }
+
   return NextResponse.json(livraison, { status: 201 });
 }
