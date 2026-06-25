@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Plus, ShoppingCart, ChevronRight, X, Trash2 } from "lucide-react";
+import { Plus, ShoppingCart, ChevronRight, X, Trash2, Truck } from "lucide-react";
 import Link from "next/link";
 import CycleVenteNav from "@/components/CycleVenteNav";
 
 type Client = { id: number; nom: string; telephone: string };
 type Brique = { id: number; nom: string; dimensions: string | null; prixVente: number; stockActuel: number };
-type Commande = { id: number; numero: string; statut: string; createdAt: string; acompte: number; transport: number; client: { nom: string }; lignes: { quantite: number; prixUnit: number; brique: { nom: string } }[] };
+type Commande = { id: number; numero: string; statut: string; createdAt: string; acompte: number; transport: number; client: { nom: string }; lignes: { briqueId: number; quantite: number; prixUnit: number; brique: { nom: string } }[]; livraison: null | object };
 
 function StatutBadge({ statut }: { statut: string }) {
   const map: Record<string, string> = { en_attente: "bg-yellow-100 text-yellow-800", confirme: "bg-blue-100 text-blue-800", livre: "bg-green-100 text-green-800", annule: "bg-red-100 text-red-800" };
@@ -28,6 +28,8 @@ export default function Commandes() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [formError, setFormError] = useState("");
+  const [livrantId, setLivrantId] = useState<number | null>(null);
+  const [erreurLivraison, setErreurLivraison] = useState<string | null>(null);
 
   function load() {
     fetch("/api/commandes").then(r => r.json()).then(setCommandes);
@@ -50,6 +52,25 @@ export default function Commandes() {
   function removeLigne(i: number) {
     if (lignes.length === 1) return;
     setLignes(lignes.filter((_, idx) => idx !== i));
+  }
+
+  async function livrerCommande(c: Commande) {
+    setErreurLivraison(null);
+    setLivrantId(c.id);
+    try {
+      const lignes = c.lignes.map(l => ({ briqueId: l.briqueId, quantiteCommandee: l.quantite, quantiteLivree: l.quantite }));
+      const res = await fetch("/api/livraisons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commandeId: c.id, dateLivraison: new Date().toISOString(), lignes }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setErreurLivraison(err.message ?? "Erreur lors de la livraison");
+        return;
+      }
+      load();
+    } finally { setLivrantId(null); }
   }
 
   const commandesFiltrees = commandes.filter(c => {
@@ -120,28 +141,41 @@ export default function Commandes() {
             <p className="text-gray-400 text-sm">Aucune commande</p>
           </div>
         )}
+        {erreurLivraison && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">{erreurLivraison}</div>
+        )}
         {commandesFiltrees.map(c => {
           const total = c.lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + c.transport;
+          const peutLivrer = !c.livraison && c.statut !== "livre" && c.statut !== "annule";
           return (
-            <Link href={`/commandes/${c.id}`} key={c.id} className="block bg-white rounded-xl border border-gray-100 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{c.client.nom}</p>
-                  <p className="text-xs text-gray-400">{c.numero} · {new Date(c.createdAt).toLocaleDateString("fr-FR")}</p>
+            <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-4">
+              <Link href={`/commandes/${c.id}`} className="block">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{c.client.nom}</p>
+                    <p className="text-xs text-gray-400">{c.numero} · {new Date(c.createdAt).toLocaleDateString("fr-FR")}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatutBadge statut={c.statut} />
+                    <ChevronRight size={16} className="text-gray-300" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatutBadge statut={c.statut} />
-                  <ChevronRight size={16} className="text-gray-300" />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">{c.lignes.length} article(s)</p>
+                  <p className="text-sm font-bold text-gray-900">{devise} {total.toLocaleString()}</p>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">{c.lignes.length} article(s)</p>
-                <p className="text-sm font-bold text-gray-900">{devise} {total.toLocaleString()}</p>
-              </div>
-              {c.acompte > 0 && (
-                <div className="mt-2 text-xs text-green-600">Acompte reçu : {devise} {c.acompte.toLocaleString()}</div>
+                {c.acompte > 0 && (
+                  <div className="mt-2 text-xs text-green-600">Acompte reçu : {devise} {c.acompte.toLocaleString()}</div>
+                )}
+              </Link>
+              {peutLivrer && (
+                <button onClick={() => livrerCommande(c)} disabled={livrantId === c.id}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-green-600 text-white text-xs font-medium disabled:opacity-60">
+                  <Truck size={13} />
+                  {livrantId === c.id ? "Livraison en cours…" : "Livrer maintenant"}
+                </button>
               )}
-            </Link>
+            </div>
           );
         })}
       </div>
