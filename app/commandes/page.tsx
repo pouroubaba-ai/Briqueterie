@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Plus, ShoppingCart, ChevronRight, X, Trash2, Truck } from "lucide-react";
+import { Plus, ShoppingCart, ChevronRight, X, Trash2, Truck, BarChart2 } from "lucide-react";
 import Link from "next/link";
 import CycleVenteNav from "@/components/CycleVenteNav";
 
@@ -119,9 +119,14 @@ export default function Commandes() {
           <h1 className="text-base font-semibold text-gray-900">Commandes</h1>
           <p className="text-xs text-gray-500">{commandes.length} commande(s)</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600 text-white text-xs font-medium">
-          <Plus size={14} /> Nouvelle
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/commandes/rapport" className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium">
+            <BarChart2 size={14} /> Rapport
+          </Link>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600 text-white text-xs font-medium">
+            <Plus size={14} /> Nouvelle
+          </button>
+        </div>
       </div>
 
       <CycleVenteNav />
