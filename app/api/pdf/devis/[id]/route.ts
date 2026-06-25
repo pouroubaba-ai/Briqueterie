@@ -29,6 +29,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       echeance: devis.dateValidite.toISOString(),
       client: devis.client,
       lignes,
+      transport: devis.transport ?? 0,
       notes: devis.notes ?? "",
       parametres: parametres ?? {},
     }));

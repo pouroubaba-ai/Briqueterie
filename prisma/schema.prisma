@@ -133,13 +133,14 @@ model Commande {
 }
 
 model LigneCommande {
-  id         Int      @id @default(autoincrement())
-  commandeId Int
-  commande   Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  briqueId   Int
-  brique     Brique   @relation(fields: [briqueId], references: [id])
-  quantite   Int
-  prixUnit   Float
+  id            Int      @id @default(autoincrement())
+  commandeId    Int
+  commande      Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  briqueId      Int
+  brique        Brique   @relation(fields: [briqueId], references: [id])
+  quantite      Int
+  prixUnit      Float
+  transportUnit Float    @default(0)
 }
 
 model Livraison {

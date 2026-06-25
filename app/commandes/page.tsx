@@ -24,7 +24,7 @@ export default function Commandes() {
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientForm, setClientForm] = useState({ nom: "", telephone: "", adresse: "" });
   const [form, setForm] = useState({ clientId: 0, dateLivraisonPrevue: "", acompte: 0, transport: 0, notes: "" });
-  const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0 }]);
+  const [lignes, setLignes] = useState<{ briqueId: number; quantite: number; prixUnit: number; transportUnit: number }[]>([{ briqueId: 0, quantite: 1, prixUnit: 0, transportUnit: 0 }]);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [formError, setFormError] = useState("");
@@ -43,7 +43,7 @@ export default function Commandes() {
     if (existant !== -1) {
       setLignes(ls => ls.map((l, j) => j === existant ? { ...l, quantite: l.quantite + ls[i].quantite } : l).filter((_, j) => j !== i));
     } else {
-      const nl = [...lignes]; nl[i] = { briqueId, quantite: nl[i].quantite, prixUnit: b?.prixVente ?? 0 }; setLignes(nl);
+      const nl = [...lignes]; nl[i] = { briqueId, quantite: nl[i].quantite, prixUnit: b?.prixVente ?? 0, transportUnit: nl[i].transportUnit }; setLignes(nl);
     }
   }
 
@@ -59,7 +59,8 @@ export default function Commandes() {
     return c.statut !== "livre" && c.statut !== "annule";
   });
 
-  const totalCommande = lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + form.transport;
+  const totalTransport = lignes.reduce((s, l) => s + l.quantite * (l.transportUnit ?? 0), 0);
+  const totalCommande = lignes.reduce((s, l) => s + l.quantite * l.prixUnit, 0) + totalTransport;
 
   async function saveClient() {
     const r = await fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientForm) });
@@ -70,7 +71,7 @@ export default function Commandes() {
 
   async function save() {
     if (savingRef.current) return;
-    const validLignes = lignes.filter(l => l.briqueId > 0 && l.quantite > 0);
+    const validLignes = lignes.filter(l => l.briqueId > 0 && l.quantite > 0).map(l => ({ ...l, transportUnit: l.transportUnit ?? 0 }));
     if (!form.clientId || !validLignes.length) return;
     setFormError("");
     // Validation client-side
@@ -80,13 +81,13 @@ export default function Commandes() {
     }
     savingRef.current = true; setSaving(true);
     try {
-      const res = await fetch("/api/commandes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, lignes: validLignes }) });
+      const res = await fetch("/api/commandes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, transport: 0, lignes: validLignes }) });
       if (!res.ok) {
         const data = await res.json();
         setFormError(data.error ?? "Erreur lors de la création.");
         return;
       }
-      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0 }]); setForm({ clientId: 0, dateLivraisonPrevue: "", acompte: 0, transport: 0, notes: "" }); setFormError(""); load();
+      setShowForm(false); setLignes([{ briqueId: 0, quantite: 1, prixUnit: 0, transportUnit: 0 }]); setForm({ clientId: 0, dateLivraisonPrevue: "", acompte: 0, transport: 0, notes: "" }); setFormError(""); load();
     } finally { savingRef.current = false; setSaving(false); }
   }
 
@@ -186,7 +187,7 @@ export default function Commandes() {
                       <p className="text-xs text-gray-400 mt-1">Stock disponible : <span className={bSelected.stockActuel === 0 ? "text-red-500 font-medium" : "text-gray-600 font-medium"}>{bSelected.stockActuel.toLocaleString()} unités</span></p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-400 mb-1 block">Quantité</label>
                       <input type="number" min={1} value={l.quantite || ""}
@@ -194,32 +195,34 @@ export default function Commandes() {
                         className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Prix unitaire ({devise})</label>
+                      <label className="text-xs text-gray-400 mb-1 block">Prix/u ({devise})</label>
                       <input type="number" value={l.prixUnit || ""}
                         onChange={e => { const nl = [...lignes]; nl[i].prixUnit = Number(e.target.value); setLignes(nl); }}
                         className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
                     </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Transport/u</label>
+                      <input type="number" min={0} value={l.transportUnit || ""}
+                        onChange={e => { const nl = [...lignes]; nl[i].transportUnit = Number(e.target.value); setLignes(nl); }}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-green-500" />
+                    </div>
                   </div>
+                  {l.transportUnit > 0 && l.quantite > 0 && (
+                    <p className="text-xs text-blue-600 mt-1">Transport ligne : {devise} {(l.quantite * l.transportUnit).toLocaleString()}</p>
+                  )}
                 </div>
               );
             })}
             <button onClick={() => setLignes([...lignes, { briqueId: 0, quantite: 1, prixUnit: 0 }])} className="text-xs text-green-600 font-medium mb-3">+ Ajouter une ligne</button>
 
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Transport ({devise})</label>
-                <input type="number" value={form.transport || ""} onChange={e => setForm(f => ({ ...f, transport: Number(e.target.value) }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Acompte ({devise})</label>
-                <input type="number" value={form.acompte || ""}
-                  onChange={e => { setFormError(""); setForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${form.acompte > 0 && form.acompte > totalCommande ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
-                {form.acompte > 0 && form.acompte > totalCommande && (
-                  <p className="text-xs text-red-600 mt-1">Max : {devise} {totalCommande.toLocaleString()}</p>
-                )}
-              </div>
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 mb-1 block">Acompte reçu ({devise}) — optionnel</label>
+              <input type="number" value={form.acompte || ""}
+                onChange={e => { setFormError(""); setForm(f => ({ ...f, acompte: Number(e.target.value) })); }}
+                className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none ${form.acompte > 0 && form.acompte > totalCommande ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-green-500"}`} />
+              {form.acompte > 0 && form.acompte > totalCommande && (
+                <p className="text-xs text-red-600 mt-1">Max : {devise} {totalCommande.toLocaleString()}</p>
+              )}
             </div>
 
             <div className="mb-3">
@@ -234,9 +237,10 @@ export default function Commandes() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500" />
             </div>
 
-            <div className="bg-green-50 rounded-xl p-3 mb-4 flex justify-between">
-              <span className="text-sm text-gray-600">Total commande</span>
-              <span className="text-sm font-bold text-green-700">{devise} {totalCommande.toLocaleString()}</span>
+            <div className="bg-green-50 rounded-xl p-3 mb-4 space-y-1">
+              <div className="flex justify-between text-xs text-gray-500"><span>Sous-total articles</span><span>{devise} {(totalCommande - totalTransport).toLocaleString()}</span></div>
+              {totalTransport > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Transport total</span><span>{devise} {totalTransport.toLocaleString()}</span></div>}
+              <div className="flex justify-between text-sm font-bold text-green-700 pt-1 border-t border-green-100"><span>Total commande</span><span>{devise} {totalCommande.toLocaleString()}</span></div>
             </div>
 
             {formError && (

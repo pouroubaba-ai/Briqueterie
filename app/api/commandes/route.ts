@@ -19,9 +19,15 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const { clientId, devisId, dateLivraisonPrevue, acompte, transport, notes, lignes } = await req.json();
 
+  // Transport total = transport global fourni OU calculé depuis transportUnit par ligne
+  type LigneInput = { quantite: number; prixUnit: number; transportUnit?: number; briqueId: number };
+  const transportTotal = (transport != null && transport > 0)
+    ? transport
+    : (lignes as LigneInput[]).reduce((s, l) => s + l.quantite * (l.transportUnit ?? 0), 0);
+
   // Valider que l'acompte ne dépasse pas le total de la commande
   if (acompte && acompte > 0 && lignes?.length) {
-    const totalCommande = lignes.reduce((s: number, l: { quantite: number; prixUnit: number }) => s + l.quantite * l.prixUnit, 0) + (transport ?? 0);
+    const totalCommande = (lignes as LigneInput[]).reduce((s, l) => s + l.quantite * l.prixUnit, 0) + transportTotal;
     if (acompte > totalCommande) {
       return NextResponse.json({ error: `L'acompte (${acompte}) ne peut pas dépasser le total de la commande (${totalCommande}).` }, { status: 400 });
     }
@@ -36,9 +42,9 @@ export async function POST(req: NextRequest) {
       devisId: devisId ?? null,
       dateLivraisonPrevue: dateLivraisonPrevue ? new Date(dateLivraisonPrevue) : null,
       acompte: acompte ?? 0,
-      transport: transport ?? 0,
+      transport: transportTotal,
       notes: notes ?? "",
-      lignes: { create: lignes },
+      lignes: { create: (lignes as LigneInput[]).map(l => ({ briqueId: l.briqueId, quantite: l.quantite, prixUnit: l.prixUnit, transportUnit: l.transportUnit ?? 0 })) },
     },
     include: { client: true, lignes: { include: { brique: true } } },
   });
